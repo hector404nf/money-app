@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "965639261864",
+    "project_id": "money-app-74c57",
+    "storage_bucket": "money-app-74c57.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:965639261864:android:58fbd370b8b2b78e1fbc9d",
+        "android_client_info": {
+          "package_name": "com.example.money_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "965639261864-bgak7kdnb7rfsgqi66lo3v77drn9sd34.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.money_app",
+            "certificate_hash": "4249b60d38ccdd717431f847d45dd4b46f55371d"
+          }
+        },
+        {
+          "client_id": "965639261864-sshunlm5hdm7u81k01ic8g89s7f4tcdn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.money_app",
+            "certificate_hash": "a10599a1a63a21143c775733645bf0130658ae18"
+          }
+        },
+        {
+          "client_id": "965639261864-5poqfc8lfbi0gmr4onnqpnnedm3t5oq4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-AJAG8g5sm0u52oM0xZil1dQzDwFY6Rw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "965639261864-5poqfc8lfbi0gmr4onnqpnnedm3t5oq4.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "965639261864-5ghqoe3eisf04ll6mlb1649rueafh42u.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.moneyApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
