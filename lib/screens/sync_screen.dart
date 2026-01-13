@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
 import '../utils/constants.dart';
+import '../services/update_service.dart';
 import 'categories_screen.dart';
 
 // Keeps existing SyncScreen for direct navigation if needed, or as a detail view
@@ -96,6 +97,14 @@ class SettingsTab extends StatelessWidget {
                 context,
                 MaterialPageRoute(builder: (context) => const CategoriesScreen()),
               );
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.system_update,
+            title: 'Actualizaciones',
+            subtitle: 'Verificar nueva versión',
+            onTap: () {
+              UpdateService().checkForUpdates(context, manualCheck: true);
             },
           ),
           _SettingsTile(

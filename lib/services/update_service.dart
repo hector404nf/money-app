@@ -14,7 +14,7 @@ class UpdateService {
   // }
   static const String _versionUrl = 'https://raw.githubusercontent.com/hector404nf/money-app/main/version.json';
 
-  Future<void> checkForUpdates(BuildContext context) async {
+  Future<void> checkForUpdates(BuildContext context, {bool manualCheck = false}) async {
     try {
       // 1. Obtener versión actual de la app
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
@@ -39,10 +39,23 @@ class UpdateService {
           if (context.mounted) {
             _showUpdateDialog(context, remoteVersion, changelog, apkUrl);
           }
+        } else if (manualCheck && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ya tienes la última versión instalada')),
+          );
         }
+      } else if (manualCheck && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al verificar actualizaciones')),
+        );
       }
     } catch (e) {
       debugPrint('Error verificando actualizaciones: $e');
+      if (manualCheck && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
