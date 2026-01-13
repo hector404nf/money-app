@@ -12,8 +12,7 @@ class UpdateService {
   //   "url": "https://tu-sitio.com/app-release.apk",
   //   "changelog": "Corrección de errores y mejoras de rendimiento"
   // }
-  // TODO: CAMBIA "TU_USUARIO" POR TU NOMBRE DE USUARIO DE GITHUB
-  static const String _versionUrl = 'https://raw.githubusercontent.com/TU_USUARIO/money_app/main/version.json';
+  static const String _versionUrl = 'https://raw.githubusercontent.com/hector404nf/money-app/main/version.json';
 
   Future<void> checkForUpdates(BuildContext context) async {
     try {
