@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
-  "url": "https://github.com/hector404nf/money-app/releases/download/v1.0.1/app-release.apk",
-  "changelog": "- Nuevos Reportes: Tasa de ahorro, desglose por categorías y análisis mensual.\n- Nuevo Icono: Diseño renovado."
+  "version": "1.0.2",
+  "url": "https://github.com/hector404nf/money-app/releases/download/v1.0.2/app-release.apk",
+  "changelog": "- Corrección crítica: El sistema de actualizaciones OTA ahora funciona correctamente en Android 11+.\n- Nuevos Reportes: Tasa de ahorro, desglose por categorías y análisis mensual.\n- Nuevo Icono: Diseño renovado."
 }

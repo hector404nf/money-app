@@ -126,6 +126,14 @@ class UpdateService {
              debugPrint('Instalando actualización...');
           }
         },
+        onError: (error) {
+           debugPrint('Error en stream OTA: $error');
+           if (context.mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               SnackBar(content: Text('Error en descarga: $error')),
+             );
+           }
+        },
       );
     } catch (e) {
       debugPrint('Error en actualización OTA: $e');
