@@ -15,6 +15,10 @@ class AppColors {
   static const income = Color(0xFF4CAF50); // 122 39% 49%
   static const expense = Color(0xFFE53935); // 4 82% 56%
   static const transfer = Color(0xFF1976D2); // 210 79% 46%
+
+  static String formatCurrency(double amount) {
+    return '₲ ${amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+  }
 }
 
 class AppTextStyles {

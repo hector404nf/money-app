@@ -10,6 +10,7 @@ import '../utils/constants.dart';
 import 'add_transaction_screen.dart';
 import 'transaction_details_screen.dart';
 import 'sync_screen.dart';
+import 'reports_screen.dart';
 import '../services/update_service.dart';
 
 class DashboardTab extends StatefulWidget {
@@ -162,8 +163,9 @@ class _DashboardTabState extends State<DashboardTab> {
                 label: 'Reportes',
                 color: const Color(0xFF1976D2), // Azul Transferencia
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Reportes próximamente')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReportsScreen()),
                   );
                 },
               ),
