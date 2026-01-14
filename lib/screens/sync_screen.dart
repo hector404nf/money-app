@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
+import '../providers/ui_provider.dart';
 import '../utils/constants.dart';
 import '../services/update_service.dart';
 import 'categories_screen.dart';
@@ -11,6 +12,7 @@ class SyncScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ui = Provider.of<UiProvider>(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -120,8 +122,14 @@ class SettingsTab extends StatelessWidget {
             icon: Icons.dark_mode_outlined,
             title: 'Modo oscuro',
              trailing: Switch(
-              value: false,
-              onChanged: (v) {},
+              value: ui.themeMode == ThemeMode.dark,
+              onChanged: (v) {
+                if (v) {
+                  ui.setThemeMode(ThemeMode.dark);
+                } else {
+                  ui.setThemeMode(ThemeMode.light);
+                }
+              },
               activeColor: AppColors.primary,
             ),
           ),
