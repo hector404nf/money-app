@@ -11,6 +11,12 @@ class AppColors {
   static const textPrimary = Color(0xFF293241); // 220 20% 20%
   static const textSecondary = Color(0xFF737B8C); // 220 10% 50%
   
+  // Dark Mode Colors
+  static const darkBackground = Color(0xFF121418);
+  static const darkSurface = Color(0xFF1E2228);
+  static const darkTextPrimary = Color(0xFFFFFFFF);
+  static const darkTextSecondary = Color(0xFF9CA3AF);
+
   // Semantic Colors
   static const income = Color(0xFF4CAF50); // 122 39% 49%
   static const expense = Color(0xFFE53935); // 4 82% 56%

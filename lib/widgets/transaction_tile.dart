@@ -27,13 +27,20 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          AppShadows.soft,
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Material(
@@ -65,17 +72,17 @@ class TransactionTile extends StatelessWidget {
                     children: [
                       Text(
                         categoryName,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        style: theme.textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: theme.textTheme.bodyLarge?.color,
                         ),
                       ),
                       if (note != null && note!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           note!,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: isDark ? Colors.white60 : AppColors.textSecondary,
                             fontSize: 13,
                           ),
                           maxLines: 1,

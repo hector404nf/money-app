@@ -13,6 +13,7 @@ class Category {
   final bool isTransferLike;
   final bool isMoneyLike;
   final bool isDebtLike;
+  final double? monthlyBudget;
 
   Category({
     required this.id,
@@ -22,6 +23,7 @@ class Category {
     this.isTransferLike = false,
     this.isMoneyLike = false,
     this.isDebtLike = false,
+    this.monthlyBudget,
   });
 
   Map<String, dynamic> toMap() {
@@ -33,6 +35,7 @@ class Category {
       'isTransferLike': isTransferLike,
       'isMoneyLike': isMoneyLike,
       'isDebtLike': isDebtLike,
+      'monthlyBudget': monthlyBudget,
     };
   }
 
@@ -46,6 +49,7 @@ class Category {
       isTransferLike: map['isTransferLike'] as bool? ?? false,
       isMoneyLike: map['isMoneyLike'] as bool? ?? false,
       isDebtLike: map['isDebtLike'] as bool? ?? false,
+      monthlyBudget: map['monthlyBudget'] as double?,
     );
   }
 }

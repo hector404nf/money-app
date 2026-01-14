@@ -11,15 +11,18 @@ class ReportsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA), // Fondo claro suave
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: const Color(0xFFF8F9FA),
+          backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary),
+            icon: Icon(Icons.arrow_back_ios_new, color: theme.iconTheme.color),
             onPressed: () => Navigator.pop(context),
           ),
           title: Column(
@@ -27,15 +30,15 @@ class ReportsScreen extends StatelessWidget {
             children: [
               Text(
                 'Reportes',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: theme.textTheme.titleLarge?.color,
                     ),
               ),
               Text(
                 'Análisis de tus finanzas',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                     ),
               ),
             ],
@@ -48,11 +51,11 @@ class ReportsScreen extends StatelessWidget {
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardTheme.color,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -60,11 +63,11 @@ class ReportsScreen extends StatelessWidget {
               ),
               child: TabBar(
                 indicator: BoxDecoration(
-                  color: const Color(0xFF004D40), // Verde oscuro similar al diseño
+                  color: AppColors.primary,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 labelColor: Colors.white,
-                unselectedLabelColor: AppColors.textSecondary,
+                unselectedLabelColor: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                 indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: Colors.transparent,
                 padding: const EdgeInsets.all(4),
@@ -113,6 +116,8 @@ class _SummaryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final provider = Provider.of<DataProvider>(context);
     final monthKey = provider.selectedMonthKey;
 
@@ -143,11 +148,11 @@ class _SummaryTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardTheme.color,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -162,7 +167,7 @@ class _SummaryTab extends StatelessWidget {
                     Text(
                       'Tasa de ahorro',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                         fontSize: 14,
                       ),
                     ),
@@ -186,10 +191,10 @@ class _SummaryTab extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   '$savingsPercentage%',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 40,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: theme.textTheme.titleLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -197,7 +202,7 @@ class _SummaryTab extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
                     value: savingsRate.clamp(0.0, 1.0),
-                    backgroundColor: Colors.grey[200],
+                    backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
                     color: const Color(0xFF00695C),
                     minHeight: 10,
                   ),
@@ -236,11 +241,11 @@ class _SummaryTab extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardTheme.color,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -252,7 +257,7 @@ class _SummaryTab extends StatelessWidget {
                 Text(
                   'Ahorro del mes',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                     fontSize: 14,
                   ),
                 ),
@@ -289,14 +294,17 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -317,7 +325,7 @@ class _InfoCard extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
               fontSize: 14,
             ),
           ),
@@ -341,6 +349,8 @@ class _CategoriesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final provider = Provider.of<DataProvider>(context);
     final monthKey = provider.selectedMonthKey;
 
@@ -367,11 +377,11 @@ class _CategoriesTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.pie_chart_outline, size: 64, color: Colors.grey[300]),
+            Icon(Icons.pie_chart_outline, size: 64, color: isDark ? Colors.grey[700] : Colors.grey[300]),
             const SizedBox(height: 16),
             Text(
               'No hay gastos registrados',
-              style: TextStyle(color: Colors.grey[500]),
+              style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[500]),
             ),
           ],
         ),
@@ -394,32 +404,71 @@ class _CategoriesTab extends StatelessWidget {
           orElse: () => Category(id: 'unknown', name: 'Desconocido', kind: CategoryKind.expense),
         );
 
+        final budget = category.monthlyBudget;
+        final hasBudget = budget != null && budget > 0;
+        
+        String subtext;
+        Color progressColor;
+        double progressValue;
+        Widget? extraInfo;
+
+        if (hasBudget) {
+          final budgetPercent = amount / budget!;
+          final budgetPercentInt = (budgetPercent * 100).toInt();
+          
+          if (budgetPercent >= 1.0) {
+            progressColor = Colors.red;
+          } else if (budgetPercent >= 0.8) {
+            progressColor = Colors.orange;
+          } else {
+            progressColor = Colors.teal;
+          }
+          
+          progressValue = budgetPercent.clamp(0.0, 1.0);
+          subtext = '${AppColors.formatCurrency(amount)} de ${AppColors.formatCurrency(budget)} ($budgetPercentInt%)';
+          
+          if (budgetPercent > 1.0) {
+            extraInfo = Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                'Excedido por ${AppColors.formatCurrency(amount - budget)}',
+                style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            );
+          }
+        } else {
+          subtext = '$percentageInt% del total';
+          progressColor = Colors.blueAccent;
+          progressValue = percentage;
+        }
+
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardTheme.color,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.03),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: hasBudget ? progressColor.withOpacity(0.1) : (isDark ? Colors.blue.withOpacity(0.1) : Colors.blue.shade50),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       IconHelper.getIconByName(category.iconName ?? 'category'),
-                      color: Colors.blue,
+                      color: hasBudget ? progressColor : Colors.blue,
                       size: 24,
                     ),
                   ),
@@ -430,28 +479,29 @@ class _CategoriesTab extends StatelessWidget {
                       children: [
                         Text(
                           category.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: AppColors.textPrimary,
+                            color: theme.textTheme.titleLarge?.color,
                           ),
                         ),
                         Text(
-                          '$percentageInt% del total',
+                          subtext,
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
                       ],
                     ),
                   ),
+                  if (!hasBudget) // Only show amount on right if not showing budget details inline (or keep it?)
                   Text(
                     AppColors.formatCurrency(amount),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: AppColors.textPrimary,
+                      color: theme.textTheme.titleLarge?.color,
                     ),
                   ),
                 ],
@@ -460,12 +510,13 @@ class _CategoriesTab extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
-                  value: percentage,
-                  backgroundColor: Colors.grey[100],
-                  color: Colors.redAccent, // Red bars as shown in image
-                  minHeight: 6,
+                  value: progressValue,
+                  backgroundColor: isDark ? Colors.grey[800] : Colors.grey[100],
+                  color: progressColor,
+                  minHeight: 8, // Slightly thicker for budget visibility
                 ),
               ),
+              if (extraInfo != null) extraInfo,
             ],
           ),
         );

@@ -4,14 +4,19 @@ import 'package:hive_flutter/hive_flutter.dart';
 class UiProvider extends ChangeNotifier {
   static const _boxName = 'settings';
   static const _themeKey = 'themeMode';
+  static const _notificationsKey = 'notificationsEnabled';
 
   ThemeMode _themeMode = ThemeMode.system;
+  bool _notificationsEnabled = true;
 
   ThemeMode get themeMode => _themeMode;
+  bool get notificationsEnabled => _notificationsEnabled;
 
   Future<void> load() async {
     final box = await Hive.openBox(_boxName);
     final saved = box.get(_themeKey) as String?;
+    _notificationsEnabled = box.get(_notificationsKey, defaultValue: true) as bool;
+    
     if (saved != null) {
       switch (saved) {
         case 'light':
@@ -44,6 +49,13 @@ class UiProvider extends ChangeNotifier {
         value = 'system';
     }
     await box.put(_themeKey, value);
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    _notificationsEnabled = enabled;
+    notifyListeners();
+    final box = await Hive.openBox(_boxName);
+    await box.put(_notificationsKey, enabled);
   }
 }
 

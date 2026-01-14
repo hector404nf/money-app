@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
 import 'package:money_app/main.dart';
 import 'package:money_app/providers/data_provider.dart';
+import 'package:money_app/providers/ui_provider.dart';
 import 'package:money_app/screens/add_goal_screen.dart';
 import 'package:money_app/screens/add_transaction_screen.dart';
 import 'package:money_app/widgets/transaction_tile.dart';
@@ -32,6 +33,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => DataProvider()),
+          ChangeNotifierProvider(create: (_) => UiProvider()),
         ],
         child: const MoneyApp(),
       ),

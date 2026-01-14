@@ -25,13 +25,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      // backgroundColor handled by theme
       body: _tabs[_currentIndex],
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8.0,
-        color: Colors.white,
+        color: theme.cardTheme.color,
         elevation: 10,
         child: SizedBox(
           height: 60,
@@ -57,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
             );
           },
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.secondary,
           elevation: 4,
           shape: const CircleBorder(),
           child: const Icon(Icons.add, color: Colors.white, size: 32),
@@ -69,6 +72,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
     final isSelected = _currentIndex == index;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final selectedColor = AppColors.secondary;
+    final unselectedColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return InkWell(
       onTap: () {
         setState(() => _currentIndex = index);
@@ -78,14 +86,14 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Icon(
             isSelected ? activeIcon : icon,
-            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+            color: isSelected ? selectedColor : unselectedColor,
             size: 24,
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              color: isSelected ? selectedColor : unselectedColor,
               fontSize: 10,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             ),

@@ -82,6 +82,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Widget _buildTypeButton(TransactionFlow flow, String label) {
     final isSelected = _flow == flow;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     final color = flow == TransactionFlow.expense 
         ? AppColors.expense 
         : flow == TransactionFlow.income 
@@ -114,7 +117,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           child: Text(
             label,
             style: TextStyle(
-              color: isSelected ? Colors.white : AppColors.textSecondary,
+              color: isSelected ? Colors.white : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
               fontWeight: FontWeight.w600,
               fontSize: 14,
             ),
@@ -127,6 +130,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DataProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     final categoriesToShow = provider.categories.where((c) {
       if (isExpense) return c.kind == CategoryKind.expense;
       if (isIncome) return c.kind == CategoryKind.income;
@@ -134,10 +140,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      // backgroundColor: AppColors.background, // Handled by theme
       appBar: AppBar(
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: Colors.transparent, // Let scaffold background show through
+        foregroundColor: theme.textTheme.titleLarge?.color,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -158,10 +164,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: theme.cardTheme.color,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
-                      AppShadows.soft,
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
                     ],
                   ),
                   child: Row(
@@ -185,12 +195,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       fontWeight: FontWeight.bold,
                       color: flowColor,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       prefixText: '₲ ',
                       border: InputBorder.none,
                       hintText: '0',
-                      hintStyle: TextStyle(color: Colors.black12),
-                    ),
+                      hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black12),
+                  ),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Ingresa monto';
@@ -208,7 +218,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppColors.background,
+                    color: isDark ? theme.scaffoldBackgroundColor : AppColors.background,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                     boxShadow: [
                       BoxShadow(
@@ -276,7 +286,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           decoration: InputDecoration(
                             hintText: 'Agregar una nota...',
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: isDark ? Colors.black26 : Colors.white,
                             contentPadding: const EdgeInsets.all(16),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -325,15 +335,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildSectionLabel(String label, IconData icon) {
+    final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.textSecondary),
+        Icon(icon, size: 18, color: theme.iconTheme.color?.withOpacity(0.7) ?? AppColors.textSecondary),
         const SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: theme.textTheme.bodyLarge?.color,
             fontSize: 14,
           ),
         ),
@@ -378,18 +389,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               initialDate: _selectedDate,
               firstDate: DateTime(2020),
               lastDate: DateTime(2030),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: ColorScheme.light(
-                      primary: flowColor,
-                      onPrimary: Colors.white,
-                      onSurface: AppColors.textPrimary,
-                    ),
-                  ),
-                  child: child!,
-                );
-              },
             );
             if (picked != null) setState(() => _selectedDate = picked);
           },
@@ -399,9 +398,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   List<DropdownMenuItem<String>> _getAccountItems(DataProvider provider) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     final accountItems = provider.accounts.map((e) => DropdownMenuItem(
           value: e.id,
-          child: Text(e.name),
+          child: Text(e.name, style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
         ));
 
     final goalItems = provider.goals.map((e) => DropdownMenuItem(
@@ -424,14 +426,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     required List<DropdownMenuItem<String>> items,
     required ValueChanged<String?> onChanged,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -444,14 +449,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           items: items,
           onChanged: onChanged,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
-          hint: const Text('Seleccionar...', style: TextStyle(color: AppColors.textSecondary)),
+          dropdownColor: theme.cardTheme.color,
+          icon: Icon(Icons.keyboard_arrow_down, color: theme.iconTheme.color?.withOpacity(0.5)),
+          hint: Text('Seleccionar...', style: TextStyle(color: theme.hintColor)),
         ),
       ),
     );
   }
 
   Widget _buildCategoryGrid(List<Category> categories) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return LayoutBuilder(
       builder: (context, constraints) {
         final double itemWidth = (constraints.maxWidth - 36) / 4; // 4 columns, 12px spacing * 3 gaps
@@ -475,14 +484,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: theme.cardTheme.color,
                             borderRadius: BorderRadius.circular(16),
                             border: isSelected 
                                 ? Border.all(color: flowColor, width: 2) 
                                 : null,
                             boxShadow: [
                               BoxShadow(
-                                color: isSelected ? flowColor.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.03),
+                                color: isSelected ? flowColor.withValues(alpha: 0.2) : Colors.black.withOpacity(isDark ? 0.3 : 0.03),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               )
@@ -491,7 +500,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           child: Center(
                             child: Icon(
                               cat.iconName != null ? IconHelper.getIconByName(cat.iconName!) : IconHelper.getCategoryIcon(cat.name),
-                              color: isSelected ? flowColor : AppColors.textPrimary,
+                              color: isSelected ? flowColor : theme.iconTheme.color,
                               size: 24,
                             ),
                           ),
@@ -506,7 +515,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? flowColor : AppColors.textSecondary,
+                          color: isSelected ? flowColor : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
                         ),
                       ),
                     ],
@@ -534,11 +543,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       child: Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: theme.cardTheme.color,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Colors.grey.shade300,
-                            style: BorderStyle.solid, // Dotted not native, solid light grey is cleaner or custom painter
+                            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                            style: BorderStyle.solid, 
                             width: 1,
                           ),
                         ),
@@ -546,13 +555,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add, color: Colors.grey.shade400),
+                              Icon(Icons.add, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
                               const SizedBox(height: 4),
                               Text(
                                 'Crear',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.grey.shade500,
+                                  color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -630,6 +639,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
   
   Widget _buildStatusSelector() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -638,9 +650,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardTheme.color,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
           ),
           child: Row(
             children: [
@@ -656,6 +668,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Widget _buildStatusOption(TransactionStatus status, String label) {
     final isSelected = _status == status;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _status = status),
@@ -670,7 +685,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           child: Text(
             label,
             style: TextStyle(
-              color: isSelected ? Colors.white : AppColors.textSecondary,
+              color: isSelected ? Colors.white : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
@@ -682,6 +697,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Widget _buildDueDateSelector() {
     if (_status == TransactionStatus.pagado) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,11 +716,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                builder: (context, child) {
                 return Theme(
                   data: Theme.of(context).copyWith(
-                    colorScheme: ColorScheme.light(
-                      primary: flowColor,
-                      onPrimary: Colors.white,
-                      onSurface: AppColors.textPrimary,
-                    ),
+                    colorScheme: isDark 
+                        ? ColorScheme.dark(
+                            primary: flowColor,
+                            onPrimary: Colors.white,
+                            onSurface: AppColors.darkTextPrimary,
+                            surface: AppColors.darkSurface,
+                          )
+                        : ColorScheme.light(
+                            primary: flowColor,
+                            onPrimary: Colors.white,
+                            onSurface: AppColors.textPrimary,
+                          ),
                   ),
                   child: child!,
                 );
@@ -713,9 +738,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardTheme.color,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
             ),
             child: Row(
               children: [
@@ -726,7 +751,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ? 'Seleccionar fecha...' 
                       : '${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}',
                   style: TextStyle(
-                    color: _dueDate == null ? AppColors.textSecondary : AppColors.textPrimary,
+                    color: _dueDate == null 
+                        ? (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary) 
+                        : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -734,7 +761,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 if (_dueDate != null)
                   GestureDetector(
                     onTap: () => setState(() => _dueDate = null),
-                    child: Icon(Icons.close, size: 18, color: Colors.grey),
+                    child: Icon(Icons.close, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey),
                   ),
               ],
             ),
@@ -832,25 +859,28 @@ class _DateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? color : Colors.white,
+          color: isSelected ? color : theme.cardTheme.color,
           borderRadius: BorderRadius.circular(20),
-          border: isSelected ? null : Border.all(color: Colors.grey.shade300),
+          border: isSelected ? null : Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
         ),
         child: Row(
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.grey[600]),
+              Icon(icon, size: 16, color: isSelected ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.grey[600])),
               const SizedBox(width: 4),
             ],
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey[600],
+                color: isSelected ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.grey[600]),
                 fontWeight: FontWeight.bold,
               ),
             ),

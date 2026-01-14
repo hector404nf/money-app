@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
 import '../models/category.dart';
@@ -17,6 +18,7 @@ class ManageCategoryScreen extends StatefulWidget {
 class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
+  late TextEditingController _budgetController;
   late CategoryKind _selectedKind;
   String? _selectedIcon;
 
@@ -24,6 +26,9 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.categoryToEdit?.name ?? '');
+    _budgetController = TextEditingController(
+      text: widget.categoryToEdit?.monthlyBudget?.toStringAsFixed(0) ?? '',
+    );
     _selectedKind = widget.categoryToEdit?.kind ?? CategoryKind.expense;
     _selectedIcon = widget.categoryToEdit?.iconName;
     
@@ -36,24 +41,28 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _budgetController.dispose();
     super.dispose();
   }
 
   void _saveCategory() {
     if (_formKey.currentState!.validate()) {
       final provider = Provider.of<DataProvider>(context, listen: false);
+      final budget = double.tryParse(_budgetController.text);
       try {
         if (widget.categoryToEdit != null) {
           provider.editCategory(
             id: widget.categoryToEdit!.id,
             name: _nameController.text,
             iconName: _selectedIcon,
+            monthlyBudget: budget,
           );
         } else {
           provider.addCategory(
             name: _nameController.text,
             kind: _selectedKind,
             iconName: _selectedIcon,
+            monthlyBudget: budget,
           );
         }
         Navigator.pop(context);
@@ -106,14 +115,16 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
   Widget build(BuildContext context) {
     final isEditing = widget.categoryToEdit != null;
     final title = isEditing ? 'Editar Categoría' : 'Nueva Categoría';
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      // backgroundColor: AppColors.background, // Handled by theme
       appBar: AppBar(
-        title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
+        title: Text(title, style: TextStyle(color: theme.textTheme.titleLarge?.color)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const BackButton(color: AppColors.textPrimary),
+        leading: BackButton(color: theme.iconTheme.color),
         actions: [
           if (isEditing)
             IconButton(
@@ -130,11 +141,11 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
             // Name Input
             TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Nombre',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: theme.cardTheme.color,
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -143,15 +154,28 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-            // Type Selection (Only if adding, usually changing type is risky for consistency but we can allow it if we want, but typically apps lock type after creation. Let's lock it if editing to simplify)
-            // Wait, user might want to fix a mistake. But CategoryKind is used for logic.
-            // Let's allow it only if creating, or maybe allow it but it might look weird for existing transactions.
-            // For now, I'll allow changing it, but maybe warn? Or just disable if editing.
-            // Disabling if editing is safer.
-            
-            Text('Tipo de Categoría', style: Theme.of(context).textTheme.titleMedium),
+            // Budget Input
+            if (_selectedKind == CategoryKind.expense) ...[
+              TextFormField(
+                controller: _budgetController,
+                decoration: InputDecoration(
+                  labelText: 'Presupuesto Mensual (Opcional)',
+                  prefixText: '₲ ',
+                  border: const OutlineInputBorder(),
+                  filled: true,
+                  fillColor: theme.cardTheme.color,
+                  helperText: 'Deja vacío para no establecer límite',
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Type Selection
+            Text('Tipo de Categoría', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             SegmentedButton<CategoryKind>(
               segments: const [
@@ -199,9 +223,9 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
             Container(
               height: 300, // Fixed height for grid
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardTheme.color,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               ),
               child: GridView.builder(
                 padding: const EdgeInsets.all(8),
@@ -229,7 +253,7 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
                       ),
                       child: Icon(
                         IconHelper.getIconByName(iconName),
-                        color: isSelected ? AppColors.primary : Colors.grey.shade700,
+                        color: isSelected ? AppColors.primary : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
                       ),
                     ),
                   );

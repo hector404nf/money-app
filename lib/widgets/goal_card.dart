@@ -24,6 +24,8 @@ class GoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final progress = (currentAmount / targetAmount).clamp(0.0, 1.0);
     final percentage = (progress * 100).toInt();
     final color = Color(colorValue);
@@ -31,10 +33,14 @@ class GoalCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          AppShadows.soft,
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Material(
@@ -68,9 +74,9 @@ class GoalCard extends StatelessWidget {
                         children: [
                           Text(
                             name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: theme.textTheme.titleLarge?.color,
                               fontSize: 16,
                             ),
                           ),
@@ -78,7 +84,7 @@ class GoalCard extends StatelessWidget {
                             Text(
                               'Meta: ${_formatDate(deadline!)}',
                               style: TextStyle(
-                                color: AppColors.textSecondary.withOpacity(0.7),
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary.withOpacity(0.7),
                                 fontSize: 12,
                               ),
                             ),
@@ -118,7 +124,7 @@ class GoalCard extends StatelessWidget {
                       child: Text(
                         'Gs. ${_formatCurrency(currentAmount)}',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
@@ -130,7 +136,7 @@ class GoalCard extends StatelessWidget {
                       child: Text(
                         'de Gs. ${_formatCurrency(targetAmount)}',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                           fontSize: 12,
                         ),
                         overflow: TextOverflow.ellipsis,

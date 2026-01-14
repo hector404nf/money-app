@@ -8,6 +8,8 @@ import '../models/category.dart';
 import '../models/transaction.dart';
 import '../models/goal.dart';
 import '../services/cloud_sync_service.dart';
+import '../services/notification_service.dart';
+import '../utils/constants.dart';
 
 class DataProvider extends ChangeNotifier {
   // --- Estado en Memoria (Simulando DB) ---
@@ -31,6 +33,17 @@ class DataProvider extends ChangeNotifier {
   bool get isCloudSyncing => _isCloudSyncing;
   bool get isCloudSignedIn => _cloudSyncService.currentUser != null;
   String? get cloudUserEmail => _cloudSyncService.currentUser?.email;
+
+  double getCategorySpending(String categoryId, String? monthKey) {
+    if (monthKey == null) return 0.0;
+    return _transactions
+        .where((t) => 
+          t.categoryId == categoryId && 
+          t.monthKey == monthKey && 
+          t.amount < 0
+        )
+        .fold(0.0, (sum, t) => sum + t.amount.abs());
+  }
 
   List<String> get availableMonthKeys {
     final keys = _transactions.map((t) => t.monthKey).toSet().toList();
@@ -367,6 +380,9 @@ class DataProvider extends ChangeNotifier {
 
     _transactions.add(newTx);
     
+    // Schedule Notification
+    _scheduleNotificationForTransaction(newTx);
+    
     // Update goal if applicable (Legacy logic)
     if (goalId != null && status == TransactionStatus.pagado) {
       updateGoalContribution(goalId, amount.abs());
@@ -459,6 +475,7 @@ class DataProvider extends ChangeNotifier {
     required String name,
     required CategoryKind kind,
     String? iconName,
+    double? monthlyBudget,
   }) {
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) {
@@ -480,6 +497,7 @@ class DataProvider extends ChangeNotifier {
       kind: kind,
       isTransferLike: kind == CategoryKind.transfer,
       isDebtLike: kind == CategoryKind.debt,
+      monthlyBudget: monthlyBudget,
     );
 
     _categories.add(newCategory);
@@ -493,6 +511,7 @@ class DataProvider extends ChangeNotifier {
     required String id,
     required String name,
     String? iconName,
+    double? monthlyBudget,
   }) {
     final index = _categories.indexWhere((c) => c.id == id);
     if (index != -1) {
@@ -505,6 +524,7 @@ class DataProvider extends ChangeNotifier {
         isTransferLike: old.isTransferLike,
         isMoneyLike: old.isMoneyLike,
         isDebtLike: old.isDebtLike,
+        monthlyBudget: monthlyBudget,
       );
       notifyListeners();
       unawaited(_saveToStorage().catchError((_) {}));
@@ -603,6 +623,14 @@ class DataProvider extends ChangeNotifier {
         tags: old.tags,
         goalId: old.goalId,
       );
+      
+      // Update Notification
+      if (status == TransactionStatus.pagado) {
+        _cancelNotificationForTransaction(old);
+      } else {
+        _scheduleNotificationForTransaction(_transactions[index]);
+      }
+
       notifyListeners();
       unawaited(_saveToStorage().catchError((_) {}));
       _scheduleCloudAutoUpload();
@@ -624,6 +652,7 @@ class DataProvider extends ChangeNotifier {
          updateGoalContribution(tx.accountId, -tx.amount);
       }
 
+      _cancelNotificationForTransaction(tx);
       _transactions.removeAt(index);
       notifyListeners();
       unawaited(_saveToStorage().catchError((_) {}));
@@ -659,14 +688,16 @@ class DataProvider extends ChangeNotifier {
     final index = _goals.indexWhere((g) => g.id == id);
     if (index != -1) {
       final old = _goals[index];
-      _goals[index] = old.copyWith(currentAmount: old.currentAmount + amount);
+      _goals[index] = old.copyWith(
+        currentAmount: old.currentAmount + amount,
+      );
       notifyListeners();
       unawaited(_saveToStorage().catchError((_) {}));
       _scheduleCloudAutoUpload();
     }
   }
 
-  void updateGoal({
+  void editGoal({
     required String id,
     required String name,
     required double targetAmount,
@@ -695,6 +726,23 @@ class DataProvider extends ChangeNotifier {
     notifyListeners();
     unawaited(_saveToStorage().catchError((_) {}));
     _scheduleCloudAutoUpload();
+  }
+
+  // --- Helpers Notificaciones ---
+
+  void _scheduleNotificationForTransaction(Transaction tx) {
+    if (tx.dueDate != null && tx.status != TransactionStatus.pagado) {
+      NotificationService().schedulePaymentReminder(
+        id: tx.id.hashCode,
+        title: 'Recordatorio de Pago',
+        body: 'Vencimiento pendiente: ${AppColors.formatCurrency(tx.amount.abs())}',
+        scheduledDate: tx.dueDate!,
+      );
+    }
+  }
+
+  void _cancelNotificationForTransaction(Transaction tx) {
+    NotificationService().cancelNotification(tx.id.hashCode);
   }
 
   // --- Datos Dummy (Fase 2) ---

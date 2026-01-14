@@ -4,6 +4,7 @@ import '../providers/data_provider.dart';
 import '../providers/ui_provider.dart';
 import '../utils/constants.dart';
 import '../services/update_service.dart';
+import '../services/notification_service.dart';
 import 'categories_screen.dart';
 
 // Keeps existing SyncScreen for direct navigation if needed, or as a detail view
@@ -13,14 +14,17 @@ class SyncScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ui = Provider.of<UiProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Sincronización',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: Colors.transparent,
+        foregroundColor: theme.textTheme.titleLarge?.color,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
@@ -41,6 +45,10 @@ class SettingsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ui = Provider.of<UiProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SafeArea(
       top: true,
       bottom: false,
@@ -52,7 +60,7 @@ class SettingsTab extends StatelessWidget {
             'Ajustes',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: theme.textTheme.titleLarge?.color,
                 ),
           ),
           const SizedBox(height: 24),
@@ -113,8 +121,24 @@ class SettingsTab extends StatelessWidget {
             icon: Icons.notifications_none_outlined,
             title: 'Notificaciones',
             trailing: Switch(
-              value: true,
-              onChanged: (v) {},
+              value: ui.notificationsEnabled,
+              onChanged: (v) async {
+                if (v) {
+                  final granted = await NotificationService().requestPermissions();
+                  if (granted) {
+                    ui.setNotificationsEnabled(true);
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Se requieren permisos para notificaciones')),
+                      );
+                    }
+                  }
+                } else {
+                  ui.setNotificationsEnabled(false);
+                  NotificationService().cancelAll();
+                }
+              },
               activeColor: AppColors.primary,
             ),
           ),
@@ -203,11 +227,13 @@ class _UserProfileCard extends StatelessWidget {
     final provider = Provider.of<DataProvider>(context);
     final user = provider.cloudUserEmail;
     final isConnected = provider.isCloudSignedIn;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           AppShadows.soft,
@@ -219,7 +245,7 @@ class _UserProfileCard extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: isConnected ? AppColors.primary : Colors.grey.shade300,
+              color: isConnected ? AppColors.primary : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -239,17 +265,17 @@ class _UserProfileCard extends StatelessWidget {
               children: [
                 Text(
                   isConnected ? 'Usuario Conectado' : 'Invitado',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
-                    color: AppColors.textPrimary,
+                    color: theme.textTheme.bodyLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   isConnected ? (user ?? 'Sin email') : 'Inicia sesión para sincronizar',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: isDark ? Colors.white60 : AppColors.textSecondary,
                     fontSize: 14,
                   ),
                   maxLines: 1,
@@ -286,12 +312,14 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, left: 4),
       child: Text(
         title,
         style: TextStyle(
-          color: AppColors.textSecondary.withOpacity(0.7),
+          color: isDark ? Colors.white70 : AppColors.textSecondary.withOpacity(0.7),
           fontWeight: FontWeight.bold,
           fontSize: 12,
           letterSpacing: 1.2,
@@ -324,14 +352,17 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -350,12 +381,12 @@ class _SettingsTile extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: iconBgColor ?? Colors.grey.shade50,
+                    color: iconBgColor ?? (isDark ? Colors.grey.shade800 : Colors.grey.shade50),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     icon,
-                    color: iconColor ?? AppColors.textSecondary,
+                    color: iconColor ?? (isDark ? Colors.white70 : AppColors.textSecondary),
                     size: 22,
                   ),
                 ),
@@ -369,7 +400,7 @@ class _SettingsTile extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,
-                          color: textColor ?? AppColors.textPrimary,
+                          color: textColor ?? theme.textTheme.bodyLarge?.color,
                         ),
                       ),
                       if (subtitle != null) ...[
@@ -378,20 +409,19 @@ class _SettingsTile extends StatelessWidget {
                           subtitle!,
                           style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary.withOpacity(0.8),
+                            color: isDark ? Colors.white60 : AppColors.textSecondary.withOpacity(0.8),
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                if (trailing != null)
-                  trailing!
-                else
+                if (trailing != null) trailing!,
+                if (trailing == null && onTap != null)
                   Icon(
                     Icons.chevron_right,
-                    color: Colors.grey.shade300,
-                    size: 24,
+                    color: isDark ? Colors.white30 : Colors.grey.shade300,
+                    size: 20,
                   ),
               ],
             ),
@@ -408,6 +438,8 @@ class _SyncContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DataProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -415,7 +447,7 @@ class _SyncContent extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardTheme.color,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               AppShadows.soft,
@@ -428,7 +460,7 @@ class _SyncContent extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: provider.isCloudSignedIn
                       ? AppColors.income.withOpacity(0.1)
-                      : Colors.grey.shade100,
+                      : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -440,10 +472,10 @@ class _SyncContent extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 provider.isCloudSignedIn ? 'Conectado' : 'No conectado',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: theme.textTheme.bodyLarge?.color,
                 ),
               ),
               const SizedBox(height: 8),
@@ -452,8 +484,8 @@ class _SyncContent extends StatelessWidget {
                     ? (provider.cloudUserEmail ?? 'Cuenta sin email')
                     : 'Inicia sesión para respaldar tus datos',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                 ),
               ),
             ],
@@ -524,7 +556,7 @@ class _SyncContent extends StatelessWidget {
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              backgroundColor: Colors.red.shade50,
+              backgroundColor: isDark ? Colors.red.withOpacity(0.1) : Colors.red.shade50,
               foregroundColor: Colors.red,
               textStyle: const TextStyle(fontWeight: FontWeight.bold),
             ),
@@ -542,18 +574,18 @@ class _SyncContent extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.amber.shade50,
+            color: isDark ? Colors.amber.withOpacity(0.1) : Colors.amber.shade50,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.amber.shade200),
+            border: Border.all(color: isDark ? Colors.amber.withOpacity(0.3) : Colors.amber.shade200),
           ),
           child: Row(
             children: [
               Icon(Icons.info_outline, color: Colors.amber.shade800),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Necesitas configurar Firebase para que la sincronización funcione.',
-                  style: TextStyle(color: Color(0xFF616161), fontSize: 13),
+                  style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF616161), fontSize: 13),
                 ),
               ),
             ],

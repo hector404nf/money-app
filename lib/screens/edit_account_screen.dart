@@ -75,11 +75,13 @@ class _AddAccountModalState extends State<AddAccountModal> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.account != null;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -99,7 +101,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: isDark ? Colors.grey[700] : Colors.grey[300],
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -109,9 +111,9 @@ class _AddAccountModalState extends State<AddAccountModal> {
                 // Title
                 Text(
                   isEditing ? 'Editar Cuenta' : 'Nueva Cuenta',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: theme.textTheme.titleLarge?.color,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -126,18 +128,18 @@ class _AddAccountModalState extends State<AddAccountModal> {
                     prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: AppColors.primary, width: 2),
                     ),
                     filled: true,
-                    fillColor: Colors.grey[50],
+                    fillColor: theme.cardTheme.color,
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -159,18 +161,18 @@ class _AddAccountModalState extends State<AddAccountModal> {
                     prefixIcon: const Icon(Icons.attach_money),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: AppColors.primary, width: 2),
                     ),
                     filled: true,
-                    fillColor: Colors.grey[50],
+                    fillColor: theme.cardTheme.color,
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -187,9 +189,9 @@ class _AddAccountModalState extends State<AddAccountModal> {
                 // Account Type Selection
                 Text(
                   'Tipo de cuenta',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: theme.textTheme.titleMedium?.color,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -208,10 +210,10 @@ class _AddAccountModalState extends State<AddAccountModal> {
                           duration: const Duration(milliseconds: 200),
                           width: 80,
                           decoration: BoxDecoration(
-                            color: isSelected ? type.color : Colors.white,
+                            color: isSelected ? type.color : theme.cardTheme.color,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isSelected ? type.color : Colors.grey.shade300,
+                              color: isSelected ? type.color : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                               width: 2,
                             ),
                             boxShadow: isSelected
@@ -236,7 +238,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                               Text(
                                 type.displayName,
                                 style: TextStyle(
-                                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                                  color: isSelected ? Colors.white : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
                                   fontSize: 12,
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                 ),

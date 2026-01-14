@@ -11,15 +11,18 @@ class CategoriesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          title: const Text('Categorías', style: TextStyle(color: AppColors.textPrimary)),
+          title: Text('Categorías', style: TextStyle(color: theme.textTheme.titleLarge?.color)),
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: const BackButton(color: AppColors.textPrimary),
+          leading: BackButton(color: theme.iconTheme.color),
           bottom: const TabBar(
             labelColor: AppColors.primary,
             unselectedLabelColor: Colors.grey,
@@ -56,6 +59,9 @@ class _CategoryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Consumer<DataProvider>(
       builder: (context, provider, _) {
         final categories = provider.categories
@@ -87,11 +93,11 @@ class _CategoryList extends StatelessWidget {
 
             return Card(
               elevation: 0,
-              color: Colors.white,
+              color: theme.cardTheme.color,
               margin: const EdgeInsets.only(bottom: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.grey.shade200),
+                side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
               ),
               child: ListTile(
                 leading: CircleAvatar(

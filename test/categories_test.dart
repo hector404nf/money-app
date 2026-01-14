@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
 import 'package:money_app/main.dart';
 import 'package:money_app/providers/data_provider.dart';
+import 'package:money_app/providers/ui_provider.dart';
 import 'package:money_app/screens/categories_screen.dart';
 import 'package:money_app/screens/manage_category_screen.dart';
 import 'package:money_app/utils/icon_helper.dart';
@@ -32,6 +33,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => DataProvider()),
+          ChangeNotifierProvider(create: (_) => UiProvider()),
         ],
         child: const MoneyApp(),
       ),
@@ -55,7 +57,7 @@ void main() {
     expect(find.byType(ManageCategoryScreen), findsOneWidget);
 
     // Enter Name
-    await tester.enterText(find.byType(TextFormField), 'Gaming');
+    await tester.enterText(find.byType(TextFormField).first, 'Gaming');
     
     // Select Icon (e.g., sports_esports)
     // We need to scroll to find it in the grid if it's not visible, but for now let's try to tap it.
@@ -92,7 +94,7 @@ void main() {
     expect(find.text('Editar Categoría'), findsOneWidget);
 
     // Change Name
-    await tester.enterText(find.byType(TextFormField), 'Juegos');
+    await tester.enterText(find.byType(TextFormField).first, 'Juegos');
     
     // Change Icon to 'movie'
     final movieIconData = IconHelper.getIconByName('movie');

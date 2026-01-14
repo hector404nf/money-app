@@ -33,6 +33,8 @@ class _DashboardTabState extends State<DashboardTab> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DataProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     final selectedMonthKey = provider.selectedMonthKey;
     final incomes = provider.getIncomes(monthKey: selectedMonthKey);
@@ -68,16 +70,16 @@ class _DashboardTabState extends State<DashboardTab> {
                   children: [
                     Text(
                       'Hola,',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.textSecondary,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: isDark ? Colors.white70 : AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     Text(
                       'Resumen Financiero',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: theme.textTheme.headlineSmall?.color,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -89,11 +91,11 @@ class _DashboardTabState extends State<DashboardTab> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.cardTheme.color,
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -102,29 +104,40 @@ class _DashboardTabState extends State<DashboardTab> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
                     value: selectedMonthKey,
-                    icon: const Padding(
-                      padding: EdgeInsets.only(left: 8.0),
-                      child: Icon(Icons.keyboard_arrow_down, color: AppColors.textPrimary, size: 20),
+                    icon: Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: Icon(Icons.keyboard_arrow_down, color: theme.iconTheme.color, size: 20),
                     ),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
                     isDense: true,
                     items: [
-                      const DropdownMenuItem<String?>(
+                      DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('Todo el historial'),
+                        child: Text(
+                          'Todo el historial',
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
+                          ),
+                        ),
                       ),
                       ...provider.availableMonthKeys.map(
                         (key) => DropdownMenuItem<String?>(
                           value: key,
-                          child: Text(key),
+                          child: Text(
+                            key,
+                            style: TextStyle(
+                              color: theme.textTheme.bodyLarge?.color,
+                            ),
+                          ),
                         ),
                       ),
                     ],
                     onChanged: (value) => provider.setSelectedMonthKey(value),
+                    dropdownColor: theme.cardTheme.color,
                   ),
                 ),
               ),
@@ -136,6 +149,74 @@ class _DashboardTabState extends State<DashboardTab> {
             HeroCard(amount: projectedBalance),
             
             const SizedBox(height: 32),
+
+            // Budget Alerts
+            Builder(
+              builder: (context) {
+                if (selectedMonthKey == null) return const SizedBox.shrink();
+                
+                int alertCount = 0;
+                int exceededCount = 0;
+
+                for (var cat in provider.categories) {
+                  if (cat.monthlyBudget != null && cat.monthlyBudget! > 0) {
+                    final spent = provider.getCategorySpending(cat.id, selectedMonthKey);
+                    final ratio = spent / cat.monthlyBudget!;
+                    if (ratio >= 1.0) {
+                      exceededCount++;
+                    } else if (ratio >= 0.8) {
+                      alertCount++;
+                    }
+                  }
+                }
+
+                if (alertCount == 0 && exceededCount == 0) return const SizedBox.shrink();
+
+                return GestureDetector(
+                  onTap: () {
+                     Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ReportsScreen()),
+                      );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                       color: exceededCount > 0 ? Colors.red.shade50 : Colors.amber.shade50,
+                       borderRadius: BorderRadius.circular(12),
+                       border: Border.all(
+                         color: exceededCount > 0 ? Colors.red.shade200 : Colors.amber.shade200
+                       ),
+                    ),
+                    child: Row(
+                       children: [
+                         Icon(
+                           exceededCount > 0 ? Icons.error_outline : Icons.warning_amber_rounded, 
+                           color: exceededCount > 0 ? Colors.red[800] : Colors.orange[800]
+                         ),
+                         const SizedBox(width: 12),
+                         Expanded(
+                           child: Text(
+                             exceededCount > 0 
+                               ? '¡$exceededCount categorías excedieron su presupuesto!' 
+                               : '$alertCount categorías cerca del límite.',
+                             style: TextStyle(
+                               color: exceededCount > 0 ? Colors.red[900] : Colors.orange[900], 
+                               fontWeight: FontWeight.w600
+                             ),
+                           ),
+                         ),
+                         Icon(
+                           Icons.chevron_right, 
+                           color: exceededCount > 0 ? Colors.red[800] : Colors.orange[800]
+                         ),
+                       ],
+                    ),
+                  ),
+                );
+              }
+            ),
 
             Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -206,9 +287,9 @@ class _DashboardTabState extends State<DashboardTab> {
               Expanded(
                 child: Text(
                   'Últimos movimientos',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: theme.textTheme.titleLarge?.color,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),

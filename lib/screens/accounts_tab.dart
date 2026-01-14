@@ -18,6 +18,8 @@ class AccountsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DataProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final totalBalance = provider.accounts.fold(
       0.0, 
       (sum, account) => sum + provider.getAccountBalance(account.id)
@@ -32,16 +34,16 @@ class AccountsTab extends StatelessWidget {
           // Header
           Text(
             'Cuentas',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: theme.textTheme.headlineMedium?.color,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
             'Administra tus cuentas y saldos',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
+            style: theme.textTheme.bodyLarge?.copyWith(
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                 ),
           ),
           const SizedBox(height: 24),
@@ -80,7 +82,7 @@ class AccountsTab extends StatelessWidget {
                     const SizedBox(width: 12),
                     Text(
                       'Balance Total',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                             color: Colors.white.withOpacity(0.9),
                             fontWeight: FontWeight.w600,
                           ),
@@ -90,7 +92,7 @@ class AccountsTab extends StatelessWidget {
                 const SizedBox(height: 24),
                 Text(
                   'Gs. ${totalBalance.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
                         fontSize: 32,
@@ -116,9 +118,9 @@ class AccountsTab extends StatelessWidget {
             children: [
               Text(
                 'Mis cuentas',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: theme.textTheme.titleLarge?.color,
                     ),
               ),
               IconButton(
@@ -137,11 +139,11 @@ class AccountsTab extends StatelessWidget {
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardTheme.color,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -177,17 +179,17 @@ class AccountsTab extends StatelessWidget {
                             children: [
                               Text(
                                 account.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
+                                  color: theme.textTheme.bodyLarge?.color,
                                   fontSize: 16,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 account.type.displayName,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                                   fontSize: 13,
                                 ),
                               ),
@@ -199,9 +201,9 @@ class AccountsTab extends StatelessWidget {
                           children: [
                             Text(
                               'Gs. ${balance.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: theme.textTheme.bodyLarge?.color,
                                 fontSize: 16,
                               ),
                             ),
@@ -211,7 +213,7 @@ class AccountsTab extends StatelessWidget {
                                 child: Text(
                                   'Inicial: ${account.initialBalance.toStringAsFixed(0)}',
                                   style: TextStyle(
-                                    color: AppColors.textSecondary.withOpacity(0.7),
+                                    color: (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary).withOpacity(0.7),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -226,18 +228,18 @@ class AccountsTab extends StatelessWidget {
             );
           }),
 
-          // Add Account Button (Bottom List) - Optional now that we have header button, but keeps accessibility
+          // Add Account Button (Bottom List)
           if (provider.accounts.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   children: [
-                    Icon(Icons.account_balance_wallet_outlined, size: 48, color: Colors.grey[300]),
+                    Icon(Icons.account_balance_wallet_outlined, size: 48, color: isDark ? Colors.grey[600] : Colors.grey[300]),
                     const SizedBox(height: 16),
                     Text(
                       'No tienes cuentas registradas',
-                      style: TextStyle(color: Colors.grey[500]),
+                      style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[500]),
                     ),
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
@@ -260,9 +262,9 @@ class AccountsTab extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Metas de Ahorro',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: theme.textTheme.titleLarge?.color,
                         ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -322,12 +324,15 @@ class AccountsTab extends StatelessWidget {
              Container(
                padding: const EdgeInsets.all(24),
                decoration: BoxDecoration(
-                 color: Colors.grey[50],
+                 color: isDark ? theme.cardTheme.color : Colors.grey[50],
                  borderRadius: BorderRadius.circular(20),
-                 border: Border.all(color: Colors.grey[200]!),
+                 border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
                ),
-               child: const Center(
-                 child: Text('No tienes metas de ahorro activas'),
+               child: Center(
+                 child: Text(
+                   'No tienes metas de ahorro activas',
+                   style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                 ),
                ),
              ),
           ],
@@ -337,19 +342,19 @@ class AccountsTab extends StatelessWidget {
           // Settings Section (Placeholder)
           Text(
             'Configuración',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: theme.textTheme.titleLarge?.color,
                 ),
           ),
           const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardTheme.color,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -430,80 +435,85 @@ class AccountsTab extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
+      builder: (context) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+        
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[700] : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Color(goal.colorValue).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Color(goal.colorValue).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        IconHelper.getIconByName(goal.iconName),
+                        color: Color(goal.colorValue),
+                        size: 32,
+                      ),
                     ),
-                    child: Icon(
-                      IconHelper.getIconByName(goal.iconName),
-                      color: Color(goal.colorValue),
-                      size: 32,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          goal.name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (goal.deadline != null)
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            'Vence el ${goal.deadline!.day}/${goal.deadline!.month}/${goal.deadline!.year}',
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            goal.name,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: theme.textTheme.titleLarge?.color,
                             ),
                           ),
-                      ],
+                          if (goal.deadline != null)
+                            Text(
+                              'Vence el ${goal.deadline!.day}/${goal.deadline!.month}/${goal.deadline!.year}',
+                              style: TextStyle(
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              
-              // Progress
-              Column(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: LinearProgressIndicator(
-                      value: goal.currentAmount / goal.targetAmount,
-                      backgroundColor: Colors.grey[100],
-                      color: Color(goal.colorValue),
-                      minHeight: 20,
+                  ],
+                ),
+                const SizedBox(height: 32),
+                
+                // Progress
+                Column(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: LinearProgressIndicator(
+                        value: goal.currentAmount / goal.targetAmount,
+                        backgroundColor: isDark ? Colors.grey[800] : Colors.grey[100],
+                        color: Color(goal.colorValue),
+                        minHeight: 20,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -607,9 +617,10 @@ class AccountsTab extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
   void _confirmDelete(BuildContext context, Goal goal, DataProvider provider) {
     showDialog(

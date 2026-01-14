@@ -67,18 +67,21 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor: Colors.white, // Handled by theme
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
+          icon: Icon(Icons.close, color: theme.iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.goal != null ? 'Editar Meta' : 'Nueva Meta',
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: theme.textTheme.titleLarge?.color, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -113,7 +116,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                   labelText: 'Nombre de la meta',
                   hintText: 'Ej. Auto Nuevo',
                   filled: true,
-                  fillColor: Colors.grey[50],
+                  fillColor: theme.cardTheme.color,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -138,7 +141,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                   hintText: '0',
                   prefixText: 'Gs. ',
                   filled: true,
-                  fillColor: Colors.grey[50],
+                  fillColor: theme.cardTheme.color,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -165,6 +168,25 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                     initialDate: DateTime.now().add(const Duration(days: 30)),
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: isDark 
+                              ? const ColorScheme.dark(
+                                  primary: AppColors.primary,
+                                  onPrimary: Colors.white,
+                                  onSurface: AppColors.darkTextPrimary,
+                                  surface: AppColors.darkSurface,
+                                )
+                              : const ColorScheme.light(
+                                  primary: AppColors.primary,
+                                  onPrimary: Colors.white,
+                                  onSurface: AppColors.textPrimary,
+                                ),
+                        ),
+                        child: child!,
+                      );
+                    },
                   );
                   if (date != null) {
                     setState(() => _deadline = date);
@@ -173,7 +195,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: theme.cardTheme.color,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -186,7 +208,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                               ? 'Fecha objetivo (Opcional)'
                               : '${_deadline!.day}/${_deadline!.month}/${_deadline!.year}',
                           style: TextStyle(
-                            color: _deadline == null ? Colors.grey[600] : Colors.black,
+                            color: _deadline == null ? (isDark ? Colors.grey[400] : Colors.grey[600]) : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
                             fontSize: 16,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -199,7 +221,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
               const SizedBox(height: 32),
 
               // Color Selection
-              const Text('Color', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('Color', style: TextStyle(fontWeight: FontWeight.bold, color: theme.textTheme.titleMedium?.color)),
               const SizedBox(height: 12),
               SizedBox(
                 height: 50,
@@ -218,7 +240,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                           color: color,
                           shape: BoxShape.circle,
                           border: _selectedColor == color
-                              ? Border.all(color: Colors.black, width: 2)
+                              ? Border.all(color: isDark ? Colors.white : AppColors.textPrimary, width: 2)
                               : null,
                         ),
                         child: _selectedColor == color
@@ -232,7 +254,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
               const SizedBox(height: 24),
 
               // Icon Selection
-              const Text('Ícono', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('Ícono', style: TextStyle(fontWeight: FontWeight.bold, color: theme.textTheme.titleMedium?.color)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 16,
@@ -245,13 +267,13 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                       width: 60,
                       height: 60,
                       decoration: BoxDecoration(
-                        color: isSelected ? _selectedColor.withOpacity(0.1) : Colors.grey[50],
+                        color: isSelected ? _selectedColor.withOpacity(0.1) : theme.cardTheme.color,
                         borderRadius: BorderRadius.circular(16),
                         border: isSelected ? Border.all(color: _selectedColor, width: 2) : null,
                       ),
                       child: Icon(
                         IconHelper.getIconByName(iconName),
-                        color: isSelected ? _selectedColor : Colors.grey,
+                        color: isSelected ? _selectedColor : (isDark ? Colors.grey.shade400 : AppColors.textSecondary),
                         size: 28,
                       ),
                     ),
@@ -296,7 +318,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
       final provider = Provider.of<DataProvider>(context, listen: false);
       
       if (widget.goal != null) {
-        provider.updateGoal(
+        provider.editGoal(
           id: widget.goal!.id,
           name: _nameController.text,
           targetAmount: double.parse(_amountController.text),

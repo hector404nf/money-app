@@ -53,13 +53,16 @@ class TransactionDetailsScreen extends StatelessWidget {
     final isTransfer = category.name.toLowerCase().contains('transferencia');
     final finalColor = isTransfer ? AppColors.transfer : color;
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -77,9 +80,15 @@ class TransactionDetailsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardTheme.color,
                 shape: BoxShape.circle,
-                boxShadow: [AppShadows.soft],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(isDark ? 0.3 : 0.15),
+                    offset: const Offset(0, 4),
+                    blurRadius: 20,
+                  )
+                ],
               ),
               child: Icon(
                 category.iconName != null ? IconHelper.getIconByName(category.iconName!) : IconHelper.getCategoryIcon(category.name),
@@ -90,15 +99,15 @@ class TransactionDetailsScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               category.name,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: theme.textTheme.titleLarge?.color,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               '₲ ${transaction.amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: finalColor,
               ),
@@ -110,9 +119,15 @@ class TransactionDetailsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardTheme.color,
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [AppShadows.soft],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(isDark ? 0.3 : 0.15),
+                    offset: const Offset(0, 4),
+                    blurRadius: 20,
+                  )
+                ],
               ),
               child: Column(
                 children: [
@@ -190,13 +205,16 @@ class TransactionDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildDetailRow(BuildContext context, String label, String value, {Color? valueColor}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
           style: TextStyle(
-            color: AppColors.textSecondary,
+            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -206,7 +224,7 @@ class TransactionDetailsScreen extends StatelessWidget {
             value,
             textAlign: TextAlign.right,
             style: TextStyle(
-              color: valueColor ?? AppColors.textPrimary,
+              color: valueColor ?? theme.textTheme.bodyLarge?.color,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),

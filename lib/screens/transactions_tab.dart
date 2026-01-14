@@ -116,27 +116,28 @@ class _TransactionsTabState extends State<TransactionsTab> {
                      Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardTheme.color,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String?>(
                           value: selectedMonthKey,
-                          icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
-                          style: const TextStyle(
-                            color: AppColors.primary,
+                          icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).brightness == Brightness.dark ? AppColors.secondary : AppColors.primary),
+                          dropdownColor: Theme.of(context).cardTheme.color,
+                          style: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark ? AppColors.secondary : AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
                           items: [
-                            const DropdownMenuItem<String?>(
+                            DropdownMenuItem<String?>(
                               value: null,
-                              child: Text('Todos'),
+                              child: Text('Todos', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
                             ),
                             ...provider.availableMonthKeys.map(
                               (key) => DropdownMenuItem<String?>(
                                 value: key,
-                                child: Text(key),
+                                child: Text(key, style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
                               ),
                             ),
                           ],
@@ -158,12 +159,14 @@ class _TransactionsTabState extends State<TransactionsTab> {
                             _searchQuery = value;
                           });
                         },
+                        style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
                         decoration: InputDecoration(
                           hintText: 'Buscar...',
-                          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                          hintStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : Colors.grey),
+                          prefixIcon: Icon(Icons.search, color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : Colors.grey),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(Icons.clear, color: Colors.grey),
+                                  icon: Icon(Icons.clear, color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : Colors.grey),
                                   onPressed: () {
                                     _searchController.clear();
                                     setState(() {
@@ -173,7 +176,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
                                 )
                               : null,
                           filled: true,
-                          fillColor: Colors.grey[100],
+                          fillColor: Theme.of(context).cardTheme.color,
                           contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -191,14 +194,14 @@ class _TransactionsTabState extends State<TransactionsTab> {
                         decoration: BoxDecoration(
                           color: (_filterStatus != null || _filterDateRange != null)
                               ? AppColors.primary
-                              : Colors.grey[100],
+                              : Theme.of(context).cardTheme.color,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           Icons.filter_list,
                           color: (_filterStatus != null || _filterDateRange != null)
                               ? Colors.white
-                              : Colors.grey[600],
+                              : (Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.textSecondary),
                         ),
                       ),
                     ),
@@ -227,7 +230,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
                             child: Text(
                               _formatDateLabel(date),
                               style: TextStyle(
-                                color: Colors.grey[600],
+                                color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : Colors.grey[600],
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                                 letterSpacing: 1,
@@ -317,9 +320,13 @@ class _TransactionsTabState extends State<TransactionsTab> {
                       ),
                       ActionChip(
                         label: const Text('Personalizado'),
-                        backgroundColor: _isCustomDate() ? AppColors.primary.withOpacity(0.1) : Colors.grey[100],
+                        backgroundColor: _isCustomDate() 
+                            ? AppColors.primary.withOpacity(0.1) 
+                            : (Theme.of(context).brightness == Brightness.dark ? Theme.of(context).cardTheme.color : Colors.grey[100]),
                         labelStyle: TextStyle(
-                          color: _isCustomDate() ? AppColors.primary : Colors.black87,
+                          color: _isCustomDate() 
+                              ? AppColors.primary 
+                              : (Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextPrimary : AppColors.textPrimary),
                           fontWeight: FontWeight.w600,
                         ),
                         onPressed: () async {
@@ -364,6 +371,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
   }
 
   Widget _buildFilterChip({required String label, required bool isSelected, required VoidCallback onSelected}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return FilterChip(
       label: Text(label),
       selected: isSelected,
@@ -371,10 +379,10 @@ class _TransactionsTabState extends State<TransactionsTab> {
       selectedColor: AppColors.primary.withOpacity(0.1),
       checkmarkColor: AppColors.primary,
       labelStyle: TextStyle(
-        color: isSelected ? AppColors.primary : Colors.black87,
+        color: isSelected ? AppColors.primary : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
         fontWeight: FontWeight.w600,
       ),
-      backgroundColor: Colors.grey[100],
+      backgroundColor: isDark ? Theme.of(context).cardTheme.color : Colors.grey[100],
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
@@ -465,15 +473,16 @@ class _TransactionsTabState extends State<TransactionsTab> {
 
 
   Widget _buildEmptyState(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long, size: 64, color: Colors.grey[300]),
+          Icon(Icons.receipt_long, size: 64, color: isDark ? Colors.grey[700] : Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
             'No hay movimientos',
-            style: TextStyle(color: Colors.grey[500], fontSize: 16),
+            style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[500], fontSize: 16),
           ),
         ],
       ),
