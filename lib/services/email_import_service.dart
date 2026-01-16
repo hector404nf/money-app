@@ -23,6 +23,13 @@ class EmailImportService {
       throw Exception('Inicio de sesión cancelado');
     }
 
+    final granted = await _googleSignIn.requestScopes(
+      ['https://www.googleapis.com/auth/gmail.readonly'],
+    );
+    if (!granted) {
+      throw Exception('No se concedieron los permisos de Gmail necesarios');
+    }
+
     final auth = await account.authentication;
     final token = auth.accessToken;
     if (token == null) {
@@ -46,7 +53,24 @@ class EmailImportService {
 
     final listRes = await http.get(listUri, headers: headers);
     if (listRes.statusCode != 200) {
-      throw Exception('Error al listar correos: ${listRes.statusCode}');
+      String errorMessage = 'Error al listar correos: ${listRes.statusCode}';
+      try {
+        final body = json.decode(listRes.body) as Map<String, dynamic>;
+        final error = body['error'] as Map<String, dynamic>?;
+        final message = error?['message'] as String?;
+        if (listRes.statusCode == 403) {
+          if (message != null && message.toLowerCase().contains('insufficient')) {
+            errorMessage =
+                'No tienes permisos suficientes para leer tu Gmail con este acceso. Asegúrate de aceptar los permisos de Gmail al iniciar sesión.';
+          } else {
+            errorMessage =
+                'No se pudo acceder a la API de Gmail (403). Verifica que la API de Gmail esté habilitada para este proyecto en Google Cloud y vuelve a intentarlo.';
+          }
+        } else if (message != null && message.isNotEmpty) {
+          errorMessage = 'Error al listar correos: ${listRes.statusCode} $message';
+        }
+      } catch (_) {}
+      throw Exception(errorMessage);
     }
 
     final listBody = json.decode(listRes.body) as Map<String, dynamic>;
@@ -183,4 +207,3 @@ class EmailImportService {
     return fromHeader.trim();
   }
 }
-
