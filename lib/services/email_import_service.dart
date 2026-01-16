@@ -124,16 +124,20 @@ class EmailImportService {
         }
       }
 
-      if (subject.isEmpty) {
-        subject = msgBody['snippet'] as String? ?? '';
-      }
-
       DateTime date = DateTime.now();
       try {
         date = DateTime.parse(dateStr);
       } catch (_) {}
 
-      final parsed = _parseAmountAndType(subject);
+      // Intentar buscar monto en el asunto
+      var parsed = _parseAmountAndType(subject);
+      
+      // Si no se encuentra en el asunto, buscar en el snippet (cuerpo del mensaje)
+      if (parsed == null) {
+        final snippet = msgBody['snippet'] as String? ?? '';
+        parsed = _parseAmountAndType(snippet);
+      }
+
       if (parsed == null) {
         continue;
       }
