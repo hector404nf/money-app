@@ -6,6 +6,7 @@ import '../utils/constants.dart';
 import '../services/update_service.dart';
 import '../services/notification_service.dart';
 import 'categories_screen.dart';
+import 'email_import_screen.dart';
 
 // Keeps existing SyncScreen for direct navigation if needed, or as a detail view
 class SyncScreen extends StatelessWidget {
@@ -106,6 +107,17 @@ class SettingsTab extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const CategoriesScreen()),
+              );
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.email_outlined,
+            title: 'Importar desde correo (MVP)',
+            subtitle: 'Leer correos recientes y proponer movimientos',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EmailImportScreen()),
               );
             },
           ),

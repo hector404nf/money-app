@@ -106,15 +106,35 @@ class UpdateService {
 
   Future<void> _startUpdate(BuildContext context, String url) async {
     try {
-      // Muestra un indicador de progreso simple (o usa un SnackBar)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Descargando actualización... Por favor espera.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      // 1. Verificar si el archivo existe antes de intentar descargarlo con el gestor nativo
+      // Esto evita el error "Parse Error" si el archivo es un 404 (HTML)
+      try {
+        final uri = Uri.parse(url);
+        final response = await http.head(uri);
+        if (response.statusCode == 404) {
+          throw Exception('El archivo APK no se encontró en el servidor (404). Asegúrate de haber subido el archivo a GitHub Releases.');
+        }
+      } catch (e) {
+        debugPrint('Error verificando URL: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: No se puede acceder al archivo de actualización. $e')),
+          );
+        }
+        return;
+      }
 
-      // Iniciar descarga e instalación OTA
+      // 2. Muestra un indicador de progreso simple
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Descargando actualización... Por favor espera.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // 3. Iniciar descarga e instalación OTA
       // android.os.FileUriExposedException fix: Asegúrate de configurar el provider en AndroidManifest si es necesario,
       // pero ota_update generalmente lo maneja internamente.
       OtaUpdate().execute(url, destinationFilename: 'money_app_update.apk').listen(
