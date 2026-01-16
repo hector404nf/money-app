@@ -12,6 +12,7 @@ import 'add_transaction_screen.dart';
 import 'transaction_details_screen.dart';
 import 'sync_screen.dart';
 import 'reports_screen.dart';
+import 'pending_transactions_screen.dart';
 import '../services/update_service.dart';
 
 class DashboardTab extends StatefulWidget {
@@ -45,8 +46,11 @@ class _DashboardTabState extends State<DashboardTab> {
     final pendingIncomes = provider.getPendingIncomes(monthKey: selectedMonthKey);
     final pendingExpenses = provider.getPendingExpenses(monthKey: selectedMonthKey);
 
-    final currentBalance = incomes + realExpenses; // Paid only
-    final projectedBalance = currentBalance + pendingIncomes + pendingExpenses;
+    // Calcular balance total actual de todas las cuentas
+    final totalCurrentBalance = provider.accounts.fold(0.0, (sum, a) => sum + provider.getAccountBalance(a.id));
+
+    // Balance estimado = Saldo Actual + Ingresos Pendientes + Gastos Pendientes (negativos)
+    final projectedBalance = totalCurrentBalance + pendingIncomes + pendingExpenses;
     
     // Obtener transacciones recientes (filtradas por mes si aplica)
     final recentTransactions = provider.transactions.where((t) {

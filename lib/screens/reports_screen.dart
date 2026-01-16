@@ -13,6 +13,8 @@ class ReportsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final provider = Provider.of<DataProvider>(context);
+    final selectedMonthKey = provider.selectedMonthKey;
 
     return DefaultTabController(
       length: 2,
@@ -95,7 +97,67 @@ class ReportsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: theme.cardTheme.color,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String?>(
+                      value: selectedMonthKey,
+                      icon: Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Icon(Icons.keyboard_arrow_down, color: theme.iconTheme.color, size: 20),
+                      ),
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      isDense: true,
+                      items: [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text(
+                            'Todo el historial',
+                            style: TextStyle(
+                              color: theme.textTheme.bodyLarge?.color,
+                            ),
+                          ),
+                        ),
+                        ...provider.availableMonthKeys.map(
+                          (key) => DropdownMenuItem<String?>(
+                            value: key,
+                            child: Text(
+                              key,
+                              style: TextStyle(
+                                color: theme.textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) => provider.setSelectedMonthKey(value),
+                      dropdownColor: theme.cardTheme.color,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             const Expanded(
               child: TabBarView(
                 children: [
@@ -123,7 +185,8 @@ class _SummaryTab extends StatelessWidget {
 
     final income = provider.getIncomes(monthKey: monthKey);
     final expense = provider.getRealExpenses(monthKey: monthKey);
-    final savings = income - expense;
+    // expense es negativo, así que sumamos para obtener la diferencia neta
+    final savings = income + expense; 
     final savingsRate = income > 0 ? (savings / income) : 0.0;
     final savingsPercentage = (savingsRate * 100).clamp(0, 100).toInt();
 

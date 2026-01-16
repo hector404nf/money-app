@@ -94,14 +94,14 @@ class AccountsTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Gs. ${totalBalance.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        fontSize: 32,
-                        height: 1.0,
-                      ),
-                ),
+                      'Total: Gs. ${totalBalance.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            fontSize: 32,
+                            height: 1.0,
+                          ),
+                    ),
                 const SizedBox(height: 8),
                 Text(
                   'Disponible en todas las cuentas',
@@ -447,13 +447,16 @@ class AccountsTab extends StatelessWidget {
              Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                Expanded(
+                  child: Text(
                     'Metas de Ahorro',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.textPrimary,
                         ),
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ),
                  IconButton(
                     key: const Key('add_goal_icon_button'),
                     onPressed: () {

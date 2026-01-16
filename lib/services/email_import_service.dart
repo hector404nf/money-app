@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/email_transaction_candidate.dart';
+import '../models/email_parser_template.dart';
 
 class EmailImportService {
   final GoogleSignIn _googleSignIn;
@@ -17,7 +18,10 @@ class EmailImportService {
               ],
             );
 
-  Future<List<EmailTransactionCandidate>> fetchCandidates({DateTime? since}) async {
+  Future<List<EmailTransactionCandidate>> fetchCandidates({
+    DateTime? since, 
+    List<EmailParserTemplate> templates = const [],
+  }) async {
     final account = await _googleSignIn.signInSilently() ?? await _googleSignIn.signIn();
     if (account == null) {
       throw Exception('Inicio de sesión cancelado');
@@ -129,21 +133,42 @@ class EmailImportService {
         date = DateTime.parse(dateStr);
       } catch (_) {}
 
-      // Intentar buscar monto en el asunto
-      var parsed = _parseAmountAndType(subject);
-      
-      // Si no se encuentra en el asunto, buscar en el snippet (cuerpo del mensaje)
-      if (parsed == null) {
-        final snippet = msgBody['snippet'] as String? ?? '';
-        parsed = _parseAmountAndType(snippet);
+      final snippet = msgBody['snippet'] as String? ?? '';
+      double? amount;
+      String currency = 'PYG';
+
+      // 1. Intentar con plantillas
+      for (final t in templates) {
+        if (t.matches(from, subject, snippet)) {
+          final val = t.extractAmount(subject) ?? t.extractAmount(snippet);
+          if (val != null) {
+            amount = val;
+            if (t.isExpense && amount > 0) {
+              amount = -amount;
+            } else if (!t.isExpense && amount < 0) {
+              amount = amount.abs();
+            }
+            break;
+          }
+        }
       }
 
-      if (parsed == null) {
+      // 2. Fallback a lógica por defecto
+      if (amount == null) {
+        var parsed = _parseAmountAndType(subject);
+        if (parsed == null) {
+          parsed = _parseAmountAndType(snippet);
+        }
+        
+        if (parsed != null) {
+          amount = parsed.$1;
+          currency = parsed.$2;
+        }
+      }
+
+      if (amount == null) {
         continue;
       }
-
-      final amount = parsed.$1;
-      final currency = parsed.$2;
 
       final bankName = _extractBankName(from);
 

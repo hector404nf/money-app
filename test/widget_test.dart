@@ -127,8 +127,13 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
   });
 
-  test('DataProvider addTransfer creates two movements and keeps real totals', () {
+  testWidgets('DataProvider addTransfer creates two movements and keeps real totals', (WidgetTester tester) async {
     final provider = DataProvider();
+    
+    // Wait for async initialization
+    await tester.runAsync(() async {
+      await Future.delayed(const Duration(seconds: 1));
+    });
 
     final fromBefore = provider.getAccountBalance('1');
     final toBefore = provider.getAccountBalance('3');

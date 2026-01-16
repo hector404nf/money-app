@@ -7,6 +7,7 @@ import '../models/account.dart';
 import '../models/category.dart';
 import '../models/transaction.dart';
 import '../models/goal.dart';
+import '../models/email_parser_template.dart';
 import '../services/cloud_sync_service.dart';
 import '../services/notification_service.dart';
 import '../utils/constants.dart';
@@ -17,6 +18,7 @@ class DataProvider extends ChangeNotifier {
   final List<Category> _categories = [];
   final List<Transaction> _transactions = [];
   final List<Goal> _goals = [];
+  final List<EmailParserTemplate> _emailTemplates = [];
   String? _selectedMonthKey;
   Box<dynamic>? _box;
   final CloudSyncService _cloudSyncService = CloudSyncService();
@@ -29,6 +31,7 @@ class DataProvider extends ChangeNotifier {
   List<Category> get categories => List.unmodifiable(_categories);
   List<Transaction> get transactions => List.unmodifiable(_transactions);
   List<Goal> get goals => List.unmodifiable(_goals);
+  List<EmailParserTemplate> get emailTemplates => List.unmodifiable(_emailTemplates);
   String? get selectedMonthKey => _selectedMonthKey;
   bool get isCloudSyncing => _isCloudSyncing;
   bool get isCloudSignedIn => _cloudSyncService.currentUser != null;
@@ -77,7 +80,7 @@ class DataProvider extends ChangeNotifier {
 
   // Constructor: Carga datos iniciales de prueba
   DataProvider() {
-    _loadDummyData();
+    // _loadDummyData(); // Desactivado para producción
     unawaited(_initStorage().catchError((_) {}));
   }
 
@@ -88,6 +91,7 @@ class DataProvider extends ChangeNotifier {
       final storedCategories = _box!.get('categories');
       final storedTransactions = _box!.get('transactions');
       final storedGoals = _box!.get('goals');
+      final storedEmailTemplates = _box!.get('emailTemplates');
       final storedSelectedMonthKey = _box!.get('selectedMonthKey');
 
       final hasData = storedAccounts is List &&
@@ -101,21 +105,24 @@ class DataProvider extends ChangeNotifier {
           ..addAll(
             storedAccounts
                 .cast<Map>()
-                .map((m) => Account.fromMap(Map<String, dynamic>.from(m))),
+                .map((m) => Account.fromMap(Map<String, dynamic>.from(m)))
+                .where((a) => a.id.length > 5), // Filtrar cuentas dummy (ids cortos '1', '2', '3')
           );
         _categories
           ..clear()
           ..addAll(
             storedCategories
                 .cast<Map>()
-                .map((m) => Category.fromMap(Map<String, dynamic>.from(m))),
+                .map((m) => Category.fromMap(Map<String, dynamic>.from(m)))
+                .where((c) => c.id.length > 5), // Filtrar categorías dummy ('c1', etc)
           );
         _transactions
           ..clear()
           ..addAll(
             storedTransactions
                 .cast<Map>()
-                .map((m) => Transaction.fromMap(Map<String, dynamic>.from(m))),
+                .map((m) => Transaction.fromMap(Map<String, dynamic>.from(m)))
+                .where((t) => t.id.length > 5), // Filtrar transacciones dummy ('t1', 't2')
           );
         
         if (storedGoals is List) {
@@ -128,14 +135,69 @@ class DataProvider extends ChangeNotifier {
             );
         }
 
+        if (storedEmailTemplates is List) {
+          _emailTemplates
+            ..clear()
+            ..addAll(
+              storedEmailTemplates
+                  .cast<Map>()
+                  .map((m) => EmailParserTemplate.fromMap(Map<String, dynamic>.from(m))),
+            );
+        }
+
         ensureRecurringTransactionsGenerated(DateTime.now());
         _transactions.sort((a, b) => b.date.compareTo(a.date));
         _selectedMonthKey = storedSelectedMonthKey as String?;
         notifyListeners();
       } else {
+        // Primera vez: Crear categorías por defecto
+        _addDefaultCategories();
         await _saveToStorage();
       }
     } catch (_) {}
+  }
+
+  void _addDefaultCategories() {
+    _categories
+      ..clear()
+      ..addAll([
+        Category(
+          id: 'cat_income_salary',
+          name: 'Salario',
+          kind: CategoryKind.income,
+        ),
+        Category(
+          id: 'cat_income_other',
+          name: 'Otros ingresos',
+          kind: CategoryKind.income,
+        ),
+        Category(
+          id: 'cat_expense_fixed',
+          name: 'Gastos fijos',
+          kind: CategoryKind.expense,
+        ),
+        Category(
+          id: 'cat_expense_food',
+          name: 'Comida',
+          kind: CategoryKind.expense,
+        ),
+        Category(
+          id: 'cat_expense_transport',
+          name: 'Transporte',
+          kind: CategoryKind.expense,
+        ),
+        Category(
+          id: 'cat_expense_entertainment',
+          name: 'Entretenimiento',
+          kind: CategoryKind.expense,
+        ),
+        Category(
+          id: 'cat_transfer_internal',
+          name: 'Transferencia interna',
+          kind: CategoryKind.transfer,
+          isTransferLike: true,
+        ),
+      ]);
   }
 
   Future<void> _saveToStorage() async {
@@ -144,6 +206,7 @@ class DataProvider extends ChangeNotifier {
     await _box!.put('categories', _categories.map((c) => c.toMap()).toList());
     await _box!.put('transactions', _transactions.map((t) => t.toMap()).toList());
     await _box!.put('goals', _goals.map((g) => g.toMap()).toList());
+    await _box!.put('emailTemplates', _emailTemplates.map((t) => t.toMap()).toList());
     await _box!.put('selectedMonthKey', _selectedMonthKey);
   }
 
@@ -253,26 +316,31 @@ class DataProvider extends ChangeNotifier {
   /// Calcula el saldo actual de una cuenta
   /// Saldo = SaldoInicial + Suma(Movimientos)
   double getAccountBalance(String accountId) {
-    // Check if it's a regular account
-    final accountIndex = _accounts.indexWhere((a) => a.id == accountId);
-    if (accountIndex != -1) {
-      final account = _accounts[accountIndex];
-      double totalMovements = 0;
-      for (var tx in _transactions) {
-        if (tx.accountId == accountId && tx.status == TransactionStatus.pagado) {
-          totalMovements += tx.amount;
-        }
-      }
-      return account.initialBalance + totalMovements;
-    }
-
-    // Check if it's a goal acting as an account
+    // Si es un objetivo que actúa como cuenta
     final goalIndex = _goals.indexWhere((g) => g.id == accountId);
     if (goalIndex != -1) {
       return _goals[goalIndex].currentAmount;
     }
 
-    throw Exception("Cuenta no encontrada");
+    // Cuenta normal (o virtual si no existe en la lista)
+    final account = _accounts.firstWhere(
+      (a) => a.id == accountId,
+      orElse: () => Account(
+        id: accountId,
+        name: 'Cuenta',
+        type: AccountType.other,
+        initialBalance: 0,
+      ),
+    );
+
+    double totalMovements = 0;
+    for (var tx in _transactions) {
+      if (tx.accountId == accountId && tx.status == TransactionStatus.pagado) {
+        totalMovements += tx.amount;
+      }
+    }
+
+    return account.initialBalance + totalMovements;
   }
 
   /// Calcula Egresos REALES (Excluyendo transferencias y mulas)
@@ -441,6 +509,18 @@ class DataProvider extends ChangeNotifier {
     return total;
   }
 
+  List<Transaction> getPendingTransactions({String? monthKey}) {
+    return _transactions.where((tx) {
+      if (monthKey != null && tx.monthKey != monthKey) return false;
+      if (tx.status == TransactionStatus.pagado) return false;
+      
+      final cat = _categories.firstWhere((c) => c.id == tx.categoryId);
+      if (cat.isTransferLike) return false;
+      
+      return true;
+    }).toList();
+  }
+
   // --- Mutaciones ---
 
   void addTransaction({
@@ -519,7 +599,20 @@ class DataProvider extends ChangeNotifier {
       throw Exception('El monto debe ser mayor a 0');
     }
 
-    final transferCategoryId = _categories.firstWhere((c) => c.isTransferLike).id;
+    Category transferCategory;
+    try {
+      transferCategory = _categories.firstWhere((c) => c.isTransferLike);
+    } catch (_) {
+      transferCategory = Category(
+        id: 'cat_transfer_internal',
+        name: 'Transferencia interna',
+        kind: CategoryKind.transfer,
+        isTransferLike: true,
+      );
+      _categories.add(transferCategory);
+      unawaited(_saveToStorage());
+    }
+    final transferCategoryId = transferCategory.id;
     final baseId = DateTime.now().millisecondsSinceEpoch.toString();
     final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
 
@@ -844,6 +937,28 @@ class DataProvider extends ChangeNotifier {
 
   void _cancelNotificationForTransaction(Transaction tx) {
     NotificationService().cancelNotification(tx.id.hashCode);
+  }
+
+  // --- Email Templates ---
+  void addEmailTemplate(EmailParserTemplate template) {
+    _emailTemplates.add(template);
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+  }
+
+  void updateEmailTemplate(EmailParserTemplate template) {
+    final index = _emailTemplates.indexWhere((t) => t.id == template.id);
+    if (index != -1) {
+      _emailTemplates[index] = template;
+      notifyListeners();
+      unawaited(_saveToStorage().catchError((_) {}));
+    }
+  }
+
+  void deleteEmailTemplate(String id) {
+    _emailTemplates.removeWhere((t) => t.id == id);
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
   }
 
   // --- Datos Dummy (Fase 2) ---

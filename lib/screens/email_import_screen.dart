@@ -7,6 +7,7 @@ import '../models/transaction.dart';
 import '../providers/data_provider.dart';
 import '../services/email_import_service.dart';
 import '../utils/constants.dart';
+import 'email_templates_screen.dart';
 
 class EmailImportScreen extends StatefulWidget {
   const EmailImportScreen({super.key});
@@ -30,6 +31,8 @@ class _EmailImportScreenState extends State<EmailImportScreen> {
   }
 
   Future<void> _loadCandidates() async {
+    final provider = Provider.of<DataProvider>(context, listen: false);
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -40,12 +43,17 @@ class _EmailImportScreenState extends State<EmailImportScreen> {
 
     try {
       final since = DateTime.now().subtract(const Duration(days: 30));
-      final result = await _service.fetchCandidates(since: since);
+      final result = await _service.fetchCandidates(
+        since: since,
+        templates: provider.emailTemplates,
+      );
+      if (!mounted) return;
       setState(() {
         _candidates = result;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -105,6 +113,20 @@ class _EmailImportScreenState extends State<EmailImportScreen> {
         backgroundColor: Colors.transparent,
         foregroundColor: theme.textTheme.titleLarge?.color,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Configurar plantillas',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EmailTemplatesScreen()),
+              );
+              // Refresh candidates with new templates
+              _loadCandidates();
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
