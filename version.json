@@ -1,5 +1,5 @@
 {
-  "version": "1.0.3",
-  "url": "https://github.com/hector404nf/money-app/releases/download/v1.0.3/app-release.apk",
-  "changelog": "- Corrección Modo Oscuro: Solucionado problema donde la app permanecía en modo claro.\n- Mejoras visuales: Interfaz unificada y consistente en todas las pantallas."
+  "version": "1.0.7",
+  "url": "https://github.com/hector404nf/money-app/releases/download/v1.0.7/app-release.apk",
+  "changelog": "- Nuevo: Sección \"Cuentas por pagar\" en Cuentas con vista de próximos vencimientos.\n- Nuevo: Pruebas automáticas para Onboarding y lógica de cuentas/pagos.\n- Mejora: Cards \"Es bueno saber\" más limpios y visualmente atractivos.\n- Correcciones y mejoras menores en estabilidad."
 }

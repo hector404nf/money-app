@@ -42,6 +42,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   TransactionStatus _status = TransactionStatus.pagado;
   DateTime? _dueDate;
+  RecurringFrequency? _recurringFrequency;
 
   @override
   void initState() {
@@ -242,6 +243,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           _buildStatusSelector(),
                           const SizedBox(height: 24),
                           _buildDueDateSelector(),
+                          const SizedBox(height: 24),
+                          _buildRecurringSection(),
                           const SizedBox(height: 24),
                           _buildSectionLabel('Cuenta', Icons.account_balance_wallet),
                           const SizedBox(height: 12),
@@ -627,6 +630,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             mainType: isExpense ? MainType.expenses : MainType.incomes,
             status: _status,
             dueDate: _dueDate,
+            isRecurring: _recurringFrequency != null,
+            frequency: _recurringFrequency,
           );
           _showSuccess('Movimiento guardado');
         }
@@ -661,6 +666,63 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               _buildStatusOption(TransactionStatus.programado, 'Programado'),
             ],
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecurringSection() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    Widget buildChip(RecurringFrequency? value, String label) {
+      final bool isSelected = (_recurringFrequency == null && value == null) ||
+          (_recurringFrequency != null && _recurringFrequency == value);
+
+      final Color selectedColor = flowColor;
+      final Color borderColor = isDark ? Colors.grey.shade800 : Colors.grey.shade300;
+
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            _recurringFrequency = value;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? selectedColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isSelected ? selectedColor : borderColor),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel('Repetir', Icons.repeat),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            buildChip(null, 'No repetir'),
+            buildChip(RecurringFrequency.weekly, 'Semanal'),
+            buildChip(RecurringFrequency.monthly, 'Mensual'),
+            buildChip(RecurringFrequency.yearly, 'Anual'),
+          ],
         ),
       ],
     );

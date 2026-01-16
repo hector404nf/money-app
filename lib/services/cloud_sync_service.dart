@@ -76,19 +76,38 @@ class CloudSyncService {
     final uid = user.uid;
     final batch = _firestore.batch();
 
-    batch.set(_userDoc(uid), {
-      'updatedAt': FieldValue.serverTimestamp(),
-      'selectedMonthKey': selectedMonthKey,
-    }, SetOptions(merge: true));
+    final accountsSnap = await _accountsCol(uid).get();
+    for (final doc in accountsSnap.docs) {
+      batch.delete(doc.reference);
+    }
+
+    final categoriesSnap = await _categoriesCol(uid).get();
+    for (final doc in categoriesSnap.docs) {
+      batch.delete(doc.reference);
+    }
+
+    final transactionsSnap = await _transactionsCol(uid).get();
+    for (final doc in transactionsSnap.docs) {
+      batch.delete(doc.reference);
+    }
+
+    batch.set(
+      _userDoc(uid),
+      {
+        'updatedAt': FieldValue.serverTimestamp(),
+        'selectedMonthKey': selectedMonthKey,
+      },
+      SetOptions(merge: true),
+    );
 
     for (final a in accounts) {
-      batch.set(_accountsCol(uid).doc(a.id), a.toMap(), SetOptions(merge: true));
+      batch.set(_accountsCol(uid).doc(a.id), a.toMap());
     }
     for (final c in categories) {
-      batch.set(_categoriesCol(uid).doc(c.id), c.toMap(), SetOptions(merge: true));
+      batch.set(_categoriesCol(uid).doc(c.id), c.toMap());
     }
     for (final t in transactions) {
-      batch.set(_transactionsCol(uid).doc(t.id), t.toMap(), SetOptions(merge: true));
+      batch.set(_transactionsCol(uid).doc(t.id), t.toMap());
     }
 
     await batch.commit();

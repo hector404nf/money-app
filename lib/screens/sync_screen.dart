@@ -142,7 +142,108 @@ class SettingsTab extends StatelessWidget {
               activeColor: AppColors.primary,
             ),
           ),
-           _SettingsTile(
+          _SettingsTile(
+            icon: Icons.payments_outlined,
+            title: 'Ciclo de cobro',
+            subtitle: ui.paydayDay != null
+                ? 'Cobro el día ${ui.paydayDay} de cada mes'
+                : 'Configurar día de cobro',
+            onTap: () {
+              final currentDay = ui.paydayDay ?? DateTime.now().day;
+              int tempDay = currentDay.clamp(1, 31);
+              showModalBottomSheet(
+                context: context,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                builder: (context) {
+                  final theme = Theme.of(context);
+                  final isDark = theme.brightness == Brightness.dark;
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                    child: StatefulBuilder(
+                      builder: (context, setState) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.grey[700] : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Día de cobro',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Selecciona el día aproximado en que cobrás cada mes. Esto se usa para calcular cuántos días faltan y tu gasto diario recomendado.',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: DropdownButtonFormField<int>(
+                                    value: tempDay,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Día del mes',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: List.generate(
+                                      31,
+                                      (index) {
+                                        final day = index + 1;
+                                        return DropdownMenuItem(
+                                          value: day,
+                                          child: Text(day.toString()),
+                                        );
+                                      },
+                                    ),
+                                    onChanged: (value) {
+                                      if (value == null) return;
+                                      setState(() {
+                                        tempDay = value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  await ui.setPaydayDay(tempDay);
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                  }
+                                },
+                                child: const Text('Guardar'),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          _SettingsTile(
             icon: Icons.dark_mode_outlined,
             title: 'Modo oscuro',
              trailing: Switch(

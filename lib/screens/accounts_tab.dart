@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
 import '../utils/constants.dart';
-import 'edit_account_screen.dart'; // Contains AddAccountModal
+import 'edit_account_screen.dart';
 import 'sync_screen.dart';
 import '../models/account.dart';
 import '../models/goal.dart';
+import '../models/transaction.dart';
+import '../models/category.dart';
 import '../widgets/goal_card.dart';
 import 'add_goal_screen.dart';
 import 'add_transaction_screen.dart';
 import '../utils/icon_helper.dart';
 import 'categories_screen.dart';
+import 'transaction_details_screen.dart';
 
 class AccountsTab extends StatelessWidget {
   const AccountsTab({super.key});
@@ -112,16 +115,15 @@ class AccountsTab extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          // Mis Cuentas Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Mis cuentas',
                 style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.textTheme.titleLarge?.color,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: theme.textTheme.titleLarge?.color,
+                ),
               ),
               IconButton(
                 key: const Key('add_account_button'),
@@ -227,6 +229,149 @@ class AccountsTab extends StatelessWidget {
               ),
             );
           }),
+
+          const SizedBox(height: 32),
+
+          Builder(
+            builder: (context) {
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+              final upcomingBills = provider.transactions.where((t) {
+                if (t.status == TransactionStatus.pagado) return false;
+                if (t.amount >= 0) return false;
+                if (t.dueDate == null) return false;
+                final due = DateTime(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
+                return !due.isBefore(today);
+              }).toList()
+                ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+
+              if (upcomingBills.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'Cuentas por pagar',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.textTheme.titleLarge?.color,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${upcomingBills.length} en camino',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: theme.cardTheme.color,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: upcomingBills.take(5).map((tx) {
+                        Category? category;
+                        try {
+                          category = provider.categories.firstWhere(
+                            (c) => c.id == tx.categoryId,
+                          );
+                        } catch (_) {
+                          category = null;
+                        }
+                        final isInstallment = tx.isRecurring && tx.frequency == RecurringFrequency.monthly;
+                        final title = category?.name ?? 'Gasto';
+                        final icon = IconHelper.getIconByName(category?.iconName ?? 'category');
+                        final subtitleParts = <String>[];
+                        if (isInstallment) {
+                          subtitleParts.add('Cuota mensual');
+                        } else {
+                          subtitleParts.add('Pago único');
+                        }
+                        if (tx.dueDate != null) {
+                          subtitleParts.add('Vence: ${tx.dueDate!.day}/${tx.dueDate!.month}');
+                        }
+                        final subtitle = subtitleParts.join(' • ');
+
+                        return ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: (category != null ? AppColors.primary : Colors.grey).withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              icon,
+                              color: category != null ? AppColors.primary : Colors.grey,
+                              size: 22,
+                            ),
+                          ),
+                          title: Text(
+                            title,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            subtitle,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                            ),
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '₲ ${tx.amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]}.')}',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.expense,
+                                ),
+                              ),
+                              if (isInstallment)
+                                Text(
+                                  'Cuota',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: AppColors.expense,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TransactionDetailsScreen(transaction: tx),
+                              ),
+                            );
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
 
           // Add Account Button (Bottom List)
           if (provider.accounts.isEmpty)

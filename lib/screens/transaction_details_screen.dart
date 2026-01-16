@@ -140,6 +140,15 @@ class TransactionDetailsScreen extends StatelessWidget {
                       ? Colors.green 
                       : Colors.orange
                   ),
+                  if (transaction.isRecurring || transaction.parentRecurringId != null) ...[
+                    const Divider(height: 32),
+                    _buildDetailRow(
+                      context,
+                      'Repetición',
+                      _recurringDescription(transaction),
+                      valueColor: AppColors.secondary,
+                    ),
+                  ],
                   if (transaction.dueDate != null) ...[
                      const Divider(height: 32),
                     _buildDetailRow(context, 'Vence', _formatDate(transaction.dueDate!)),
@@ -236,6 +245,32 @@ class TransactionDetailsScreen extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  String _recurringDescription(Transaction tx) {
+    String base;
+    switch (tx.frequency) {
+      case RecurringFrequency.daily:
+        base = 'Diaria';
+        break;
+      case RecurringFrequency.weekly:
+        base = 'Semanal';
+        break;
+      case RecurringFrequency.monthly:
+        base = 'Mensual';
+        break;
+      case RecurringFrequency.yearly:
+        base = 'Anual';
+        break;
+      case null:
+        base = 'Recurrente';
+        break;
+    }
+
+    if (tx.recursUntil != null) {
+      return '$base hasta ${_formatDate(tx.recursUntil!)}';
+    }
+    return base;
   }
 
   void _confirmDelete(BuildContext context, DataProvider provider) {

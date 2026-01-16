@@ -5,17 +5,25 @@ class UiProvider extends ChangeNotifier {
   static const _boxName = 'settings';
   static const _themeKey = 'themeMode';
   static const _notificationsKey = 'notificationsEnabled';
+  static const _seenOnboardingKey = 'seenOnboarding';
+  static const _paydayDayKey = 'paydayDay';
 
   ThemeMode _themeMode = ThemeMode.system;
   bool _notificationsEnabled = true;
+  bool _seenOnboarding = false;
+  int? _paydayDay;
 
   ThemeMode get themeMode => _themeMode;
   bool get notificationsEnabled => _notificationsEnabled;
+  bool get seenOnboarding => _seenOnboarding;
+  int? get paydayDay => _paydayDay;
 
   Future<void> load() async {
     final box = await Hive.openBox(_boxName);
     final saved = box.get(_themeKey) as String?;
     _notificationsEnabled = box.get(_notificationsKey, defaultValue: true) as bool;
+    _seenOnboarding = box.get(_seenOnboardingKey, defaultValue: false) as bool;
+     _paydayDay = box.get(_paydayDayKey) as int?;
     
     if (saved != null) {
       switch (saved) {
@@ -56,6 +64,20 @@ class UiProvider extends ChangeNotifier {
     notifyListeners();
     final box = await Hive.openBox(_boxName);
     await box.put(_notificationsKey, enabled);
+  }
+
+  Future<void> completeOnboarding() async {
+    _seenOnboarding = true;
+    notifyListeners();
+    final box = await Hive.openBox(_boxName);
+    await box.put(_seenOnboardingKey, true);
+  }
+
+  Future<void> setPaydayDay(int day) async {
+    _paydayDay = day;
+    notifyListeners();
+    final box = await Hive.openBox(_boxName);
+    await box.put(_paydayDayKey, day);
   }
 }
 

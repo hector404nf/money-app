@@ -9,6 +9,13 @@ enum TransactionStatus {
   programado,
 }
 
+enum RecurringFrequency {
+  daily,
+  weekly,
+  monthly,
+  yearly,
+}
+
 class Transaction {
   final String id;
   final DateTime date;
@@ -23,6 +30,10 @@ class Transaction {
   final String? notes;
   final List<String> tags;
   final String? goalId;
+  final bool isRecurring;
+  final RecurringFrequency? frequency;
+  final DateTime? recursUntil;
+  final String? parentRecurringId;
 
   const Transaction({
     required this.id,
@@ -38,6 +49,10 @@ class Transaction {
     this.notes,
     this.tags = const [],
     this.goalId,
+    this.isRecurring = false,
+    this.frequency,
+    this.recursUntil,
+    this.parentRecurringId,
   });
 
   Map<String, dynamic> toMap() {
@@ -55,12 +70,23 @@ class Transaction {
       'notes': notes,
       'tags': tags,
       'goalId': goalId,
+      'isRecurring': isRecurring,
+      'frequency': frequency?.name,
+      'recursUntil': recursUntil?.millisecondsSinceEpoch,
+      'parentRecurringId': parentRecurringId,
     };
   }
 
   static Transaction fromMap(Map<String, dynamic> map) {
     final mainType = MainType.values.firstWhere((m) => m.name == map['mainType']);
     final status = TransactionStatus.values.firstWhere((s) => s.name == map['status']);
+    final frequencyName = map['frequency'] as String?;
+    final RecurringFrequency? frequency = frequencyName == null
+        ? null
+        : RecurringFrequency.values.firstWhere(
+            (f) => f.name == frequencyName,
+            orElse: () => RecurringFrequency.monthly,
+          );
     return Transaction(
       id: map['id'],
       date: DateTime.fromMillisecondsSinceEpoch(map['date']),
@@ -75,6 +101,12 @@ class Transaction {
       notes: map['notes'],
       tags: (map['tags'] as List?)?.cast<String>() ?? const [],
       goalId: map['goalId'],
+      isRecurring: map['isRecurring'] as bool? ?? false,
+      frequency: frequency,
+      recursUntil: map['recursUntil'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(map['recursUntil']),
+      parentRecurringId: map['parentRecurringId'],
     );
   }
 }

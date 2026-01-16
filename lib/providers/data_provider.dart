@@ -53,6 +53,24 @@ class DataProvider extends ChangeNotifier {
 
   void setSelectedMonthKey(String? monthKey) {
     _selectedMonthKey = monthKey;
+
+    DateTime targetDate;
+    if (monthKey != null) {
+      final parts = monthKey.split('-');
+      if (parts.length == 2) {
+        final year = int.tryParse(parts[0]) ?? DateTime.now().year;
+        final month = int.tryParse(parts[1]) ?? DateTime.now().month;
+        targetDate = DateTime(year, month, 1);
+      } else {
+        targetDate = DateTime.now();
+      }
+    } else {
+      targetDate = DateTime.now();
+    }
+
+    ensureRecurringTransactionsGenerated(targetDate);
+    _transactions.sort((a, b) => b.date.compareTo(a.date));
+
     notifyListeners();
     unawaited(_saveToStorage().catchError((_) {}));
   }
@@ -110,6 +128,7 @@ class DataProvider extends ChangeNotifier {
             );
         }
 
+        ensureRecurringTransactionsGenerated(DateTime.now());
         _transactions.sort((a, b) => b.date.compareTo(a.date));
         _selectedMonthKey = storedSelectedMonthKey as String?;
         notifyListeners();
@@ -317,6 +336,79 @@ class DataProvider extends ChangeNotifier {
     return totals;
   }
 
+  void ensureRecurringTransactionsGenerated(DateTime now) {
+    final templates = _transactions.where((t) => t.isRecurring && t.parentRecurringId == null && t.frequency != null).toList();
+    if (templates.isEmpty) return;
+
+    final horizon = now.add(const Duration(days: 365));
+
+    for (final template in templates) {
+      final chain = _transactions
+          .where((t) => t.id == template.id || t.parentRecurringId == template.id)
+          .toList();
+
+      if (chain.isEmpty) continue;
+
+      chain.sort((a, b) => a.date.compareTo(b.date));
+      var last = chain.last;
+
+      while (true) {
+        final nextDate = _addFrequency(last.date, template.frequency!);
+
+        if (!nextDate.isAfter(last.date)) {
+          break;
+        }
+
+        if (template.recursUntil != null && nextDate.isAfter(template.recursUntil!)) {
+          break;
+        }
+
+        if (nextDate.isAfter(horizon)) {
+          break;
+        }
+
+        final monthKey = '${nextDate.year}-${nextDate.month.toString().padLeft(2, '0')}';
+
+        final newTx = Transaction(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          date: nextDate,
+          monthKey: monthKey,
+          mainType: template.mainType,
+          categoryId: template.categoryId,
+          accountId: template.accountId,
+          amount: template.amount,
+          status: TransactionStatus.programado,
+          subCategory: template.subCategory,
+          dueDate: template.dueDate ?? nextDate,
+          notes: template.notes,
+          tags: template.tags,
+          goalId: template.goalId,
+          isRecurring: true,
+          frequency: template.frequency,
+          recursUntil: template.recursUntil,
+          parentRecurringId: template.id,
+        );
+
+        _transactions.add(newTx);
+        _scheduleNotificationForTransaction(newTx);
+        last = newTx;
+      }
+    }
+  }
+
+  DateTime _addFrequency(DateTime date, RecurringFrequency frequency) {
+    switch (frequency) {
+      case RecurringFrequency.daily:
+        return date.add(const Duration(days: 1));
+      case RecurringFrequency.weekly:
+        return date.add(const Duration(days: 7));
+      case RecurringFrequency.monthly:
+        return DateTime(date.year, date.month + 1, date.day, date.hour, date.minute, date.second, date.millisecond, date.microsecond);
+      case RecurringFrequency.yearly:
+        return DateTime(date.year + 1, date.month, date.day, date.hour, date.minute, date.second, date.millisecond, date.microsecond);
+    }
+  }
+
   // --- Métodos para Programados/Pendientes ---
   
   double getPendingExpenses({String? monthKey}) {
@@ -362,6 +454,10 @@ class DataProvider extends ChangeNotifier {
     TransactionStatus status = TransactionStatus.pagado,
     DateTime? dueDate,
     String? goalId,
+    bool isRecurring = false,
+    RecurringFrequency? frequency,
+    DateTime? recursUntil,
+    String? parentRecurringId,
   }) {
     final newTx = Transaction(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // ID simple temporal
@@ -376,6 +472,10 @@ class DataProvider extends ChangeNotifier {
       notes: notes,
       subCategory: subCategory,
       goalId: goalId,
+      isRecurring: isRecurring,
+      frequency: frequency,
+      recursUntil: recursUntil,
+      parentRecurringId: parentRecurringId,
     );
 
     _transactions.add(newTx);
@@ -394,7 +494,8 @@ class DataProvider extends ChangeNotifier {
        updateGoalContribution(accountId, amount);
     }
     
-    // Ordenar por fecha descendente (más reciente arriba)
+    ensureRecurringTransactionsGenerated(date);
+
     _transactions.sort((a, b) => b.date.compareTo(a.date));
 
     notifyListeners();

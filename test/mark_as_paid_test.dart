@@ -31,11 +31,16 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => DataProvider()),
-          ChangeNotifierProvider(create: (_) => UiProvider()),
+          ChangeNotifierProvider(create: (_) {
+            final ui = UiProvider();
+            ui.completeOnboarding();
+            return ui;
+          }),
         ],
         child: const MoneyApp(),
       ),
     );
+    await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
 
     // 1. Get Initial Balance of 'ITAU' (id: '1')

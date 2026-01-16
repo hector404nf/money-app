@@ -7,6 +7,7 @@ import 'firebase_options.dart';
 import 'providers/data_provider.dart';
 import 'providers/ui_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'utils/constants.dart';
 
@@ -135,12 +136,12 @@ class MoneyApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'Money App',
+      title: 'Ikatu',
       debugShowCheckedModeBanner: false,
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: ui.themeMode,
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }

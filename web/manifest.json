@@ -1,6 +1,6 @@
 {
-    "name": "money_app",
-    "short_name": "money_app",
+    "name": "Ikatu",
+    "short_name": "Ikatu",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
