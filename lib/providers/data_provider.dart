@@ -150,7 +150,6 @@ class DataProvider extends ChangeNotifier {
         _selectedMonthKey = storedSelectedMonthKey as String?;
         notifyListeners();
       } else {
-        // Primera vez: Crear categorías por defecto
         _addDefaultCategories();
         await _saveToStorage();
       }
@@ -198,6 +197,11 @@ class DataProvider extends ChangeNotifier {
           isTransferLike: true,
         ),
       ]);
+  }
+
+  void loadDummyForTests() {
+    if (_accounts.isNotEmpty || _transactions.isNotEmpty) return;
+    _loadDummyData();
   }
 
   Future<void> _saveToStorage() async {
@@ -348,22 +352,27 @@ class DataProvider extends ChangeNotifier {
   double getRealExpenses({String? monthKey}) {
     double total = 0;
     for (var tx in _transactions) {
-      // Filtro de mes
       if (monthKey != null && tx.monthKey != monthKey) continue;
-      
-      // Solo transacciones PAGADAS cuentan como gasto real ejecutado
       if (tx.status != TransactionStatus.pagado) continue;
-
-      // Solo egresos (negativos)
       if (tx.amount >= 0) continue;
-
-      // Buscar categoría para ver si se excluye
       final cat = _categories.firstWhere((c) => c.id == tx.categoryId);
-      
-      // Regla de exclusión: Si es TransferLike, NO suma al gasto real
       if (cat.isTransferLike) continue;
+      total += tx.amount;
+    }
+    return total;
+  }
 
-      // Si pasa los filtros, sumamos (el monto es negativo, así que restará)
+  double getRealExpensesInRange(DateTime start, DateTime end) {
+    final startDate = DateTime(start.year, start.month, start.day);
+    final endDate = DateTime(end.year, end.month, end.day);
+    double total = 0;
+    for (var tx in _transactions) {
+      if (tx.status != TransactionStatus.pagado) continue;
+      if (tx.amount >= 0) continue;
+      final cat = _categories.firstWhere((c) => c.id == tx.categoryId);
+      if (cat.isTransferLike) continue;
+      final d = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      if (d.isBefore(startDate) || d.isAfter(endDate)) continue;
       total += tx.amount;
     }
     return total;

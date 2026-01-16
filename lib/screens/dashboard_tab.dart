@@ -46,10 +46,8 @@ class _DashboardTabState extends State<DashboardTab> {
     final pendingIncomes = provider.getPendingIncomes(monthKey: selectedMonthKey);
     final pendingExpenses = provider.getPendingExpenses(monthKey: selectedMonthKey);
 
-    // Calcular balance total actual de todas las cuentas
     final totalCurrentBalance = provider.accounts.fold(0.0, (sum, a) => sum + provider.getAccountBalance(a.id));
 
-    // Balance estimado = Saldo Actual + Ingresos Pendientes + Gastos Pendientes (negativos)
     final projectedBalance = totalCurrentBalance + pendingIncomes + pendingExpenses;
     
     // Obtener transacciones recientes (filtradas por mes si aplica)
@@ -247,6 +245,8 @@ class _DashboardTabState extends State<DashboardTab> {
                 final effectiveDays = daysLeft > 0 ? daysLeft : 1;
 
                 final dailyAmount = projectedBalance > 0 ? projectedBalance / effectiveDays : 0;
+                final spentToday = provider.getRealExpensesInRange(today, today).abs();
+                final remainingToday = dailyAmount - spentToday;
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -340,6 +340,25 @@ class _DashboardTabState extends State<DashboardTab> {
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'HOY LLEVÁS GASTADO',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            '₲ ${spentToday.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]}.')}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: remainingToday >= 0 ? AppColors.income : AppColors.expense,
                             ),
                           ),
                         ],

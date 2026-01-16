@@ -32,7 +32,11 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => DataProvider()),
+          ChangeNotifierProvider(create: (_) {
+            final provider = DataProvider();
+            provider.loadDummyForTests();
+            return provider;
+          }),
           ChangeNotifierProvider(create: (_) {
             final ui = UiProvider();
             ui.completeOnboarding();

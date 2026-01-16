@@ -1,5 +1,5 @@
 {
-  "version": "1.0.12",
-  "url": "https://github.com/hector404nf/money-app/releases/download/v1.0.12/app-release.apk",
-  "changelog": "- Nuevo: Importación de correos mediante plantillas personalizadas.\n- Corrección: Cálculo de 'Te sobraría' basado en saldos reales.\n- Corrección: Cálculo de ahorro mensual.\n- Estabilidad: Mejoras en categorías por defecto y transferencias."
+  "version": "1.0.13",
+  "url": "https://github.com/hector404nf/money-app/releases/download/v1.0.13/app-release.apk",
+  "changelog": "- Nuevo: Control de gasto diario basado en tu día de cobro.\n- Mejora: Reporte de promedio diario y presupuesto recomendado.\n- Estabilidad: Tests actualizados y datos dummy limitados solo a entorno de prueba.\n- Varios ajustes menores visuales."
 }

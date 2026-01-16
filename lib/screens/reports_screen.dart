@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
+import '../providers/ui_provider.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
 import '../utils/constants.dart';
@@ -181,11 +182,12 @@ class _SummaryTab extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final provider = Provider.of<DataProvider>(context);
+    final ui = Provider.of<UiProvider>(context);
     final monthKey = provider.selectedMonthKey;
+    final paydayDay = ui.paydayDay;
 
     final income = provider.getIncomes(monthKey: monthKey);
     final expense = provider.getRealExpenses(monthKey: monthKey);
-    // expense es negativo, así que sumamos para obtener la diferencia neta
     final savings = income + expense; 
     final savingsRate = income > 0 ? (savings / income) : 0.0;
     final savingsPercentage = (savingsRate * 100).clamp(0, 100).toInt();
@@ -201,6 +203,50 @@ class _SummaryTab extends StatelessWidget {
     } else if (savingsRate > 0) {
       status = 'Regular';
       statusColor = Colors.orange;
+    }
+
+    double dailyBudget = 0;
+    double dailyAverage = 0;
+    int daysLeftInCycle = 0;
+
+    if (paydayDay != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      int targetMonth = today.day < paydayDay ? today.month : today.month + 1;
+      int targetYear = today.year;
+      if (targetMonth > 12) {
+        targetMonth = 1;
+        targetYear += 1;
+      }
+      final lastDayOfTargetMonth = DateTime(targetYear, targetMonth + 1, 0).day;
+      final safeDayNext = paydayDay.clamp(1, lastDayOfTargetMonth);
+      final nextPayday = DateTime(targetYear, targetMonth, safeDayNext);
+
+      int lastMonth = today.day >= paydayDay ? today.month : today.month - 1;
+      int lastYear = today.year;
+      if (lastMonth <= 0) {
+        lastMonth = 12;
+        lastYear -= 1;
+      }
+      final lastDayOfLastMonth = DateTime(lastYear, lastMonth + 1, 0).day;
+      final safeDayLast = paydayDay.clamp(1, lastDayOfLastMonth);
+      final lastPayday = DateTime(lastYear, lastMonth, safeDayLast);
+
+      final daysElapsed = today.difference(lastPayday).inDays + 1;
+      final safeElapsed = daysElapsed > 0 ? daysElapsed : 1;
+
+      final spentCycle = provider.getRealExpensesInRange(lastPayday, today).abs();
+      dailyAverage = spentCycle / safeElapsed;
+
+      final pendingIncomes = provider.getPendingIncomes(monthKey: monthKey);
+      final pendingExpenses = provider.getPendingExpenses(monthKey: monthKey);
+      final totalCurrentBalance = provider.accounts.fold(0.0, (sum, a) => sum + provider.getAccountBalance(a.id));
+      final projectedBalance = totalCurrentBalance + pendingIncomes + pendingExpenses;
+
+      final daysLeft = nextPayday.difference(today).inDays;
+      daysLeftInCycle = daysLeft > 0 ? daysLeft : 1;
+      dailyBudget = projectedBalance > 0 ? projectedBalance / daysLeftInCycle : 0;
     }
 
     return SingleChildScrollView(
@@ -336,6 +382,89 @@ class _SummaryTab extends StatelessWidget {
               ],
             ),
           ),
+          if (paydayDay != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.cardTheme.color,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Control de gasto diario',
+                        style: TextStyle(
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '$daysLeftInCycle días restantes',
+                        style: TextStyle(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Promedio gastado por día',
+                        style: TextStyle(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        AppColors.formatCurrency(dailyAverage),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.expense,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Presupuesto diario recomendado',
+                        style: TextStyle(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        AppColors.formatCurrency(dailyBudget),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

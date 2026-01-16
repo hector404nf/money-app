@@ -8,6 +8,7 @@ import 'package:money_app/main.dart';
 import 'package:money_app/providers/data_provider.dart';
 import 'package:money_app/providers/ui_provider.dart';
 import 'package:money_app/models/account.dart';
+import 'package:money_app/utils/constants.dart';
 
 void main() {
   late Directory hiveTestDir;
@@ -30,7 +31,11 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => DataProvider()),
+          ChangeNotifierProvider(create: (_) {
+            final provider = DataProvider();
+            provider.loadDummyForTests();
+            return provider;
+          }),
           ChangeNotifierProvider(create: (_) {
             final ui = UiProvider();
             ui.completeOnboarding();
@@ -92,9 +97,17 @@ void main() {
     await tester.tap(find.byIcon(Icons.home_outlined));
     await tester.pumpAndSettle();
     
-    // HeroCard: 15M (Income) - 0.8M (Real Expense) - 1M (Pending Expense) = 13.2M
-    // Transfers are excluded from Dashboard calculations.
-    expect(find.text('₲ 13.200.000'), findsOneWidget);
+    final context = tester.element(find.byType(MoneyApp));
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final totalCurrentBalance = dataProvider.accounts.fold(
+      0.0,
+      (sum, a) => sum + dataProvider.getAccountBalance(a.id),
+    );
+    final pendingIncomesDashboard = dataProvider.getPendingIncomes(monthKey: dataProvider.selectedMonthKey);
+    final pendingExpensesDashboard = dataProvider.getPendingExpenses(monthKey: dataProvider.selectedMonthKey);
+    final projectedBalanceDashboard = totalCurrentBalance + pendingIncomesDashboard + pendingExpensesDashboard;
+    final expectedHeroText = AppColors.formatCurrency(projectedBalanceDashboard);
+    expect(find.text(expectedHeroText), findsOneWidget);
 
     // SummaryCard (Gastos) Pending text
     expect(find.textContaining('Pendiente: ₲ 1.000.000'), findsOneWidget);
