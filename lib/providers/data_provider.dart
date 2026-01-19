@@ -532,6 +532,25 @@ class DataProvider extends ChangeNotifier {
 
   // --- Mutaciones ---
 
+  void addTransactionObject(Transaction transaction) {
+    _transactions.add(transaction);
+    _scheduleNotificationForTransaction(transaction);
+    
+    // Update goal logic
+    if (transaction.goalId != null && transaction.status == TransactionStatus.pagado) {
+      updateGoalContribution(transaction.goalId!, transaction.amount.abs());
+    }
+    if (transaction.accountId != transaction.goalId && _goals.any((g) => g.id == transaction.accountId) && transaction.status == TransactionStatus.pagado) {
+       updateGoalContribution(transaction.accountId, transaction.amount);
+    }
+
+    ensureRecurringTransactionsGenerated(transaction.date);
+    _transactions.sort((a, b) => b.date.compareTo(a.date));
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+    _scheduleCloudAutoUpload();
+  }
+
   void addTransaction({
     required double amount,
     required String categoryId,

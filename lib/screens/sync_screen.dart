@@ -7,6 +7,7 @@ import '../services/update_service.dart';
 import '../services/notification_service.dart';
 import 'categories_screen.dart';
 import 'email_import_screen.dart';
+import 'excel_import_screen.dart';
 
 // Keeps existing SyncScreen for direct navigation if needed, or as a detail view
 class SyncScreen extends StatelessWidget {
@@ -280,6 +281,17 @@ class SettingsTab extends StatelessWidget {
 
            // DATOS Section
           const _SectionHeader(title: 'DATOS'),
+          _SettingsTile(
+            icon: Icons.table_view_outlined,
+            title: 'Importar desde Excel',
+            subtitle: 'Cargar movimientos desde archivo',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ExcelImportScreen()),
+              );
+            },
+          ),
           _SettingsTile(
             icon: Icons.download_outlined,
             title: 'Exportar datos',

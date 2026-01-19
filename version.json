@@ -1,5 +1,5 @@
 {
-  "version": "1.0.13",
-  "url": "https://github.com/hector404nf/money-app/releases/download/v1.0.13/app-release.apk",
-  "changelog": "- Nuevo: Control de gasto diario basado en tu día de cobro.\n- Mejora: Reporte de promedio diario y presupuesto recomendado.\n- Estabilidad: Tests actualizados y datos dummy limitados solo a entorno de prueba.\n- Varios ajustes menores visuales."
+  "version": "1.0.14",
+  "url": "https://github.com/hector404nf/money-app/releases/download/v1.0.14/app-release.apk",
+  "changelog": "- Nuevo: Importación de transacciones desde Excel con plantilla definida.\n- Mejora: Validaciones y guía de ayuda para formato Excel.\n- Estabilidad: Refactorización de lógica de importación y cobertura de tests."
 }
