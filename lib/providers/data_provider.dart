@@ -783,6 +783,12 @@ class DataProvider extends ChangeNotifier {
     unawaited(_saveToStorage().catchError((_) {}));
   }
 
+  void addAccountObject(Account account) {
+    _accounts.add(account);
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+  }
+
   void editAccount({
     required String id,
     String? name,

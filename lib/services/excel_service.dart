@@ -4,8 +4,18 @@ import '../models/transaction.dart';
 import '../models/category.dart';
 import '../models/account.dart';
 
+class ExcelParseResult {
+  final List<Transaction> transactions;
+  final List<Account> newAccounts;
+
+  ExcelParseResult({
+    required this.transactions,
+    required this.newAccounts,
+  });
+}
+
 class ExcelService {
-  List<Transaction> parseExcel({
+  ExcelParseResult parseExcel({
     required List<int> bytes,
     required List<Category> categories,
     required List<Account> accounts,
@@ -13,6 +23,15 @@ class ExcelService {
   }) {
     final excel = Excel.decodeBytes(bytes);
     final newTransactions = <Transaction>[];
+    final newAccounts = <Account>[];
+    
+    // Mutable map to track accounts during this parse session
+    final accountMap = <String, Account>{}; // normalizedName -> Account
+    
+    // Populate with existing accounts
+    for (var acc in accounts) {
+      accountMap[_normalize(acc.name)] = acc;
+    }
 
     // Assuming the first sheet has the data
     if (excel.tables.isEmpty) {
@@ -92,12 +111,18 @@ class ExcelService {
              s = s.replaceAll('Gs', '').replaceAll('₲', '').trim().replaceAll(',', '');
              amount = double.tryParse(s) ?? 0.0;
           }
-
+          
           // Parse Type
           MainType mainType = MainType.expenses;
           final typeStr = _getCellValue(row[mainTypeColIdx!]?.value).toUpperCase();
-          if (typeStr.contains('INCOME')) {
+          if (typeStr.contains('INCOME') || typeStr.contains('INGRESO')) {
             mainType = MainType.incomes;
+          }
+
+          // Ensure amount sign matches type
+          amount = amount.abs();
+          if (mainType == MainType.expenses) {
+            amount = -amount;
           }
 
           // Parse Category & SubCategory
@@ -113,13 +138,30 @@ class ExcelService {
           
           // Account
           final accountStr = _getCellValue(row[accountColIdx!]?.value).trim();
-          String accountId = _findAccountId(accounts, accountStr);
+          
+          // Find or Create Account
+          Account? account;
+          if (accountStr.isEmpty) {
+            // Default logic if no account provided?
+            // Ideally we shouldn't fail, but maybe default to "Default Account"
+            // For now, let's try to find "Efectivo" or similar in map, or create one
+            // We'll skip if empty? No, transaction needs account.
+             // We'll use "Efectivo" as default name if empty
+             final defaultName = 'Efectivo';
+             account = _findOrCreateAccount(defaultName, accountMap, newAccounts);
+          } else {
+             account = _findOrCreateAccount(accountStr, accountMap, newAccounts);
+          }
+          String accountId = account.id;
 
           // Status
           final statusStr = _getCellValue(row[statusColIdx!]?.value).toUpperCase();
-          TransactionStatus status = TransactionStatus.pagado;
-          if (statusStr != 'PAGADO') {
-            status = TransactionStatus.pendiente;
+          TransactionStatus status = TransactionStatus.pendiente; // Default to PENDIENTE if empty
+          
+          if (statusStr.contains('PAGADO')) {
+            status = TransactionStatus.pagado;
+          } else if (statusStr.contains('PROGRAMADO')) {
+            status = TransactionStatus.programado;
           }
 
           final t = Transaction(
@@ -143,7 +185,84 @@ class ExcelService {
       }
     }
     
-    return newTransactions;
+    return ExcelParseResult(
+      transactions: newTransactions,
+      newAccounts: newAccounts,
+    );
+  }
+
+  Account _findOrCreateAccount(
+    String name, 
+    Map<String, Account> accountMap, 
+    List<Account> newAccounts
+  ) {
+    final normalized = _normalize(name);
+    
+    // 1. Exact/Existing match in map
+    if (accountMap.containsKey(normalized)) {
+      return accountMap[normalized]!;
+    }
+    
+    // 2. Fuzzy/Alias match against map keys
+    // We iterate map values because map keys are normalized names, but aliases logic is complex
+    // Reuse _findAccountId logic but adapted for map values
+    final existing = _findAccountInMap(accountMap.values.toList(), name);
+    if (existing != null) {
+      accountMap[normalized] = existing; // Cache for next time
+      return existing;
+    }
+    
+    // 3. Create New
+    final newAccount = Account(
+      id: const Uuid().v4(),
+      name: name, // Use original name
+      type: AccountType.other, // Default type
+      initialBalance: 0,
+    );
+    
+    accountMap[normalized] = newAccount;
+    newAccounts.add(newAccount);
+    return newAccount;
+  }
+  
+  Account? _findAccountInMap(List<Account> accounts, String name) {
+    if (accounts.isEmpty) return null;
+    final normalizedName = _normalize(name);
+    
+    // Common aliases map (Excel Name -> App Name keywords)
+    final aliases = {
+      'cash': ['efectivo', 'cash', 'físico'],
+      'money': ['efectivo', 'cash'],
+      'banco': ['bank', 'banco'],
+      'itau': ['itau'],
+      'ueno': ['ueno'],
+      'coopeduc': ['coopeduc'],
+      'vision': ['vision'],
+    };
+
+    try {
+      return accounts.firstWhere((a) {
+        final accName = _normalize(a.name);
+        
+        // 1. Exact match (already checked by map key, but safe to double check)
+        if (accName == normalizedName) return true;
+        
+        // 2. Contains match
+        if (accName.contains(normalizedName) || normalizedName.contains(accName)) return true;
+        
+        // 3. Alias match
+        for (var entry in aliases.entries) {
+          if (normalizedName.contains(entry.key)) {
+             for (var val in entry.value) {
+               if (accName.contains(val)) return true;
+             }
+          }
+        }
+        return false;
+      });
+    } catch (e) {
+      return null;
+    }
   }
 
   String _getCellValue(CellValue? cellValue) {
@@ -175,20 +294,6 @@ class ExcelService {
       return existing.id;
     } catch (e) {
       return categories.first.id;
-    }
-  }
-
-  String _findAccountId(List<Account> accounts, String name) {
-    if (accounts.isEmpty) return 'default_acc_id';
-
-    try {
-      final existing = accounts.firstWhere(
-        (a) => _normalize(a.name) == _normalize(name) || _normalize(a.type.displayName) == _normalize(name),
-        orElse: () => accounts.first, 
-      );
-      return existing.id;
-    } catch (e) {
-      return accounts.first.id;
     }
   }
 

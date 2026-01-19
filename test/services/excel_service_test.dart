@@ -60,18 +60,18 @@ void main() {
 
     var bytes = excel.encode();
     
-    final transactions = excelService.parseExcel(
+    final result = excelService.parseExcel(
       bytes: bytes!,
       categories: mockCategories,
       accounts: mockAccounts,
       selectedYear: 2023,
     );
 
-    expect(transactions.length, 1);
-    final t = transactions.first;
+    expect(result.transactions.length, 1);
+    final t = result.transactions.first;
     expect(t.date.year, 2023);
     expect(t.date.month, 5);
-    expect(t.amount, 50000.0);
+    expect(t.amount, -50000.0);
     expect(t.categoryId, 'cat1'); // Should match 'Food' because subcategory is 'Food'
     expect(t.accountId, 'acc1'); // Should match 'Cash'
     expect(t.mainType, MainType.expenses);
@@ -93,13 +93,129 @@ void main() {
 
     var bytes = excel.encode();
     
-    final transactions = excelService.parseExcel(
+    final result = excelService.parseExcel(
       bytes: bytes!,
       categories: mockCategories,
       accounts: mockAccounts,
       selectedYear: 2023,
     );
 
-    expect(transactions.isEmpty, true);
+    expect(result.transactions.isEmpty, true);
+  });
+
+  test('parseExcel handles negative amounts for expenses correctly', () {
+    var excel = Excel.createExcel();
+    Sheet sheetObject = excel['Sheet1'];
+    
+    // Add headers
+    List<CellValue> headers = [
+      TextCellValue('MONTH'), 
+      TextCellValue('MAIN TYPE'), 
+      TextCellValue('CATEGORY'), 
+      TextCellValue('SUB-CATEGORY'), 
+      TextCellValue('ACCOUNT'), 
+      TextCellValue('AMOUNT'), 
+      TextCellValue('STATUS')
+    ];
+    sheetObject.appendRow(headers);
+
+    // Add a row with negative expense
+    sheetObject.appendRow([
+      IntCellValue(5), 
+      TextCellValue('Expense'), 
+      TextCellValue('General'), 
+      TextCellValue('Food'), 
+      TextCellValue('Cash'), 
+      IntCellValue(-20000), // Negative amount
+      TextCellValue('PAGADO')
+    ]);
+
+    var bytes = excel.encode();
+    
+    final result = excelService.parseExcel(
+      bytes: bytes!,
+      categories: mockCategories,
+      accounts: mockAccounts,
+      selectedYear: 2023,
+    );
+
+    expect(result.transactions.length, 1);
+    final t = result.transactions.first;
+    expect(t.amount, -20000.0); // Should be negative for expense
+    expect(t.mainType, MainType.expenses);
+  });
+
+  test('parseExcel handles fuzzy account matching', () {
+    var excel = Excel.createExcel();
+    Sheet sheetObject = excel['Sheet1'];
+    
+    // Add headers
+    List<CellValue> headers = [
+      TextCellValue('MONTH'), 
+      TextCellValue('MAIN TYPE'), 
+      TextCellValue('CATEGORY'), 
+      TextCellValue('SUB-CATEGORY'), 
+      TextCellValue('ACCOUNT'), 
+      TextCellValue('AMOUNT'), 
+      TextCellValue('STATUS')
+    ];
+    sheetObject.appendRow(headers);
+
+    // Add rows with tricky account names
+    sheetObject.appendRow([IntCellValue(1), TextCellValue('Expense'), TextCellValue('Cat'), TextCellValue('Sub'), TextCellValue('UENO'), IntCellValue(100), TextCellValue('PAGADO')]);
+    sheetObject.appendRow([IntCellValue(1), TextCellValue('Expense'), TextCellValue('Cat'), TextCellValue('Sub'), TextCellValue('CASH'), IntCellValue(100), TextCellValue('PAGADO')]);
+    
+    // Create accounts with slightly different names
+    final fuzzyAccounts = [
+       Account(id: 'ueno_id', name: 'Ueno Bank', type: AccountType.bank, initialBalance: 0),
+       Account(id: 'cash_id', name: 'Efectivo', type: AccountType.cash, initialBalance: 0),
+    ];
+
+    var bytes = excel.encode();
+    
+    final result = excelService.parseExcel(
+      bytes: bytes!,
+      categories: mockCategories,
+      accounts: fuzzyAccounts,
+      selectedYear: 2023,
+    );
+
+    expect(result.transactions.length, 2);
+    // UENO should match Ueno Bank
+    expect(result.transactions[0].accountId, 'ueno_id');
+    // CASH should match Efectivo
+    expect(result.transactions[1].accountId, 'cash_id');
+  });
+
+  test('parseExcel defaults to PENDIENTE for empty status', () {
+    var excel = Excel.createExcel();
+    Sheet sheetObject = excel['Sheet1'];
+    
+    // Add headers
+    List<CellValue> headers = [
+      TextCellValue('MONTH'), 
+      TextCellValue('MAIN TYPE'), 
+      TextCellValue('CATEGORY'), 
+      TextCellValue('SUB-CATEGORY'), 
+      TextCellValue('ACCOUNT'), 
+      TextCellValue('AMOUNT'), 
+      TextCellValue('STATUS')
+    ];
+    sheetObject.appendRow(headers);
+
+    // Empty status
+    sheetObject.appendRow([IntCellValue(1), TextCellValue('Expense'), TextCellValue('Cat'), TextCellValue('Sub'), TextCellValue('Acc'), IntCellValue(100), null]);
+
+    var bytes = excel.encode();
+    
+    final result = excelService.parseExcel(
+      bytes: bytes!,
+      categories: mockCategories,
+      accounts: mockAccounts,
+      selectedYear: 2023,
+    );
+
+    expect(result.transactions.length, 1);
+    expect(result.transactions.first.status, TransactionStatus.pendiente);
   });
 }

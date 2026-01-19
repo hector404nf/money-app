@@ -20,6 +20,7 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
   bool _isLoading = false;
   String? _fileName;
   List<Transaction> _previewTransactions = [];
+  List<Account> _newAccounts = [];
   int _selectedYear = DateTime.now().year;
   String? _error;
   final ExcelService _excelService = ExcelService();
@@ -61,7 +62,7 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
     try {
       final provider = Provider.of<DataProvider>(context, listen: false);
       
-      final newTransactions = _excelService.parseExcel(
+      final result = _excelService.parseExcel(
         bytes: bytes,
         categories: provider.categories,
         accounts: provider.accounts,
@@ -69,7 +70,8 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
       );
 
       setState(() {
-        _previewTransactions = newTransactions;
+        _previewTransactions = result.transactions;
+        _newAccounts = result.newAccounts;
         if (_previewTransactions.isEmpty) {
           _error = 'No se pudieron extraer transacciones. Verifique el formato.';
         }
@@ -91,14 +93,26 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
 
     try {
       final provider = Provider.of<DataProvider>(context, listen: false);
+      
+      // First, create new accounts if any
+      int createdAccounts = 0;
+      for (var acc in _newAccounts) {
+        // Double check if it wasn't added in a previous run (though this is batch)
+        if (!provider.accounts.any((a) => a.id == acc.id)) {
+          provider.addAccountObject(acc);
+          createdAccounts++;
+        }
+      }
+
       for (var t in _previewTransactions) {
         provider.addTransactionObject(t);
       }
 
       if (mounted) {
+        final accMsg = createdAccounts > 0 ? ' y $createdAccounts cuentas' : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Importadas ${_previewTransactions.length} transacciones exitosamente'),
+            content: Text('Importadas ${_previewTransactions.length} transacciones$accMsg exitosamente'),
             backgroundColor: AppColors.income,
           ),
         );
@@ -242,15 +256,18 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
                         ),
                       )
                     else
-                      ListTile(
-                        leading: const Icon(Icons.check_circle, color: AppColors.income),
-                        title: Text(_fileName!),
-                        subtitle: Text('${_previewTransactions.length} movimientos encontrados'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.refresh),
-                          onPressed: _pickFile,
-                        ),
-                      ),
+            ListTile(
+              leading: const Icon(Icons.check_circle, color: AppColors.income),
+              title: Text(_fileName!),
+              subtitle: Text(
+                '${_previewTransactions.length} movimientos found' + 
+                (_newAccounts.isNotEmpty ? ' • ${_newAccounts.length} new accounts' : '')
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _pickFile,
+              ),
+            ),
                   ],
                 ),
               ),
