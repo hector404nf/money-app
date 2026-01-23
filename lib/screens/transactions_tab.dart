@@ -257,7 +257,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
                selectedMonthKey == '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}'))
             PredictionCard(
               transactions: provider.transactions,
-              currentBalance: provider.calculateTotalBalance(),
+              currentBalance: provider.accounts.fold(0.0, (sum, a) => sum + provider.getAccountBalance(a.id)),
             ),
 
           Expanded(

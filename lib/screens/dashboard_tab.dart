@@ -12,7 +12,6 @@ import 'add_transaction_screen.dart';
 import 'transaction_details_screen.dart';
 import 'sync_screen.dart';
 import 'reports_screen.dart';
-import 'pending_transactions_screen.dart';
 import '../services/update_service.dart';
 
 class DashboardTab extends StatefulWidget {
@@ -40,11 +39,15 @@ class _DashboardTabState extends State<DashboardTab> {
     final isDark = theme.brightness == Brightness.dark;
 
     final selectedMonthKey = provider.selectedMonthKey;
-    final incomes = provider.getIncomes(monthKey: selectedMonthKey);
-    final realExpenses = provider.getRealExpenses(monthKey: selectedMonthKey);
+    final nowForKey = DateTime.now();
+    final currentMonthKey = '${nowForKey.year}-${nowForKey.month.toString().padLeft(2, '0')}';
+    final summaryMonthKey = selectedMonthKey ?? currentMonthKey;
 
-    final pendingIncomes = provider.getPendingIncomes(monthKey: selectedMonthKey);
-    final pendingExpenses = provider.getPendingExpenses(monthKey: selectedMonthKey);
+    final incomes = provider.getIncomes(monthKey: summaryMonthKey);
+    final realExpenses = provider.getRealExpenses(monthKey: summaryMonthKey);
+
+    final pendingIncomes = provider.getPendingIncomes(monthKey: summaryMonthKey);
+    final pendingExpenses = provider.getPendingExpenses(monthKey: summaryMonthKey);
 
     final totalCurrentBalance = provider.accounts.fold(0.0, (sum, a) => sum + provider.getAccountBalance(a.id));
 
@@ -244,7 +247,7 @@ class _DashboardTabState extends State<DashboardTab> {
                 final daysLeft = nextPayday.difference(today).inDays;
                 final effectiveDays = daysLeft > 0 ? daysLeft : 1;
 
-                final dailyAmount = projectedBalance > 0 ? projectedBalance / effectiveDays : 0;
+                final dailyAmount = totalCurrentBalance > 0 ? totalCurrentBalance / effectiveDays : 0;
                 final spentToday = provider.getRealExpensesInRange(today, today).abs();
                 final remainingToday = dailyAmount - spentToday;
 

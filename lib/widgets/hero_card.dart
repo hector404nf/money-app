@@ -127,7 +127,7 @@ class HeroCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Balance estimado del mes',
+                                'Saldo proyectado del mes (incluye pendientes)',
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: Colors.white.withOpacity(0.8),
                                 ),
