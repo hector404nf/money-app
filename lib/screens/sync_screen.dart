@@ -8,6 +8,12 @@ import '../services/notification_service.dart';
 import 'categories_screen.dart';
 import 'email_import_screen.dart';
 import 'excel_import_screen.dart';
+import 'subscriptions_screen.dart';
+import 'purchase_simulator_screen.dart';
+import 'debt_snowball_screen.dart';
+import 'achievements_screen.dart';
+import 'challenges_screen.dart';
+import 'events_screen.dart';
 
 // Keeps existing SyncScreen for direct navigation if needed, or as a detail view
 class SyncScreen extends StatelessWidget {
@@ -99,15 +105,70 @@ class SettingsTab extends StatelessWidget {
           const SizedBox(height: 24),
 
           // PREFERENCIAS Section
-          const _SectionHeader(title: 'PREFERENCIAS'),
+          const _SectionHeader(title: 'HERRAMIENTAS'),
           _SettingsTile(
-            icon: Icons.category_outlined,
-            title: 'Categorías',
-            subtitle: 'Gestionar categorías e iconos',
+            icon: Icons.emoji_events_outlined,
+            title: 'Logros y Medallas',
+            subtitle: 'Tu progreso gamificado',
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const CategoriesScreen()),
+                MaterialPageRoute(builder: (context) => const AchievementsScreen()),
+              );
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.flag_outlined,
+            title: 'Retos de Ahorro',
+            subtitle: 'Desafíos para mejorar tus finanzas',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ChallengesScreen()),
+              );
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.subscriptions_outlined,
+            title: 'Mis Suscripciones',
+            subtitle: 'Netflix, Spotify, Gym...',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SubscriptionsScreen()),
+              );
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.flight_takeoff,
+            title: 'Modo Viaje / Eventos',
+            subtitle: 'Gestionar viajes y monedas',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EventsScreen()),
+              );
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.shopping_bag_outlined,
+            title: 'Simulador de Compras',
+            subtitle: '¿Puedo comprarlo?',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PurchaseSimulatorScreen()),
+              );
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.snowshoeing,
+            title: 'Bola de Nieve (Deudas)',
+            subtitle: 'Plan para salir de deudas',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const DebtSnowballScreen()),
               );
             },
           ),
@@ -122,6 +183,20 @@ class SettingsTab extends StatelessWidget {
               );
             },
           ),
+          const SizedBox(height: 24),
+
+          const _SectionHeader(title: 'PREFERENCIAS'),
+          _SettingsTile(
+            icon: Icons.category_outlined,
+            title: 'Categorías',
+            subtitle: 'Gestionar categorías e iconos',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CategoriesScreen()),
+              );
+            },
+          ),
           _SettingsTile(
             icon: Icons.system_update,
             title: 'Actualizaciones',
@@ -129,6 +204,16 @@ class SettingsTab extends StatelessWidget {
             onTap: () {
               UpdateService().checkForUpdates(context, manualCheck: true);
             },
+          ),
+          _SettingsTile(
+            icon: Icons.savings_outlined,
+            title: 'Modo Ahorro Forzado',
+            subtitle: 'Alerta si excedes el presupuesto',
+            trailing: Switch(
+              value: ui.forcedSavingsMode,
+              onChanged: (v) => ui.setForcedSavingsMode(v),
+              activeColor: AppColors.primary,
+            ),
           ),
           _SettingsTile(
             icon: Icons.notifications_none_outlined,
@@ -255,6 +340,17 @@ class SettingsTab extends StatelessWidget {
                 },
               );
             },
+          ),
+          _SettingsTile(
+            icon: Icons.savings_outlined,
+            title: 'Modo Ahorro Forzado',
+            subtitle: ui.forcedSavingsMode ? 'Activado' : 'Desactivado',
+             trailing: Switch(
+              value: ui.forcedSavingsMode,
+              onChanged: (v) {
+                ui.setForcedSavingsMode(v);
+              },
+            ),
           ),
           _SettingsTile(
             icon: Icons.dark_mode_outlined,

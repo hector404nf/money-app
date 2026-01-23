@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../services/anomaly_service.dart';
 import '../providers/data_provider.dart';
+import '../providers/ui_provider.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
 import '../utils/constants.dart';
@@ -39,6 +42,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String? _toAccountId;
   DateTime _selectedDate = DateTime.now();
   final _notesController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _rateController = TextEditingController(text: '1');
+  String _currency = 'PYG';
+  double _estimatedPYG = 0;
+  String? _selectedEventId;
+
+  void _updateCalculations() {
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    _amount = amount;
+    if (_currency == 'PYG') {
+      setState(() {
+         _estimatedPYG = amount;
+      });
+    } else {
+      final rate = double.tryParse(_rateController.text) ?? 1;
+      setState(() {
+        _estimatedPYG = amount * rate;
+      });
+    }
+  }
 
   TransactionStatus _status = TransactionStatus.pagado;
   DateTime? _dueDate;
@@ -78,6 +101,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   void dispose() {
     _notesController.dispose();
+    _amountController.dispose();
+    _rateController.dispose();
     super.dispose();
   }
 
@@ -131,8 +156,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DataProvider>(context);
+    final ui = Provider.of<UiProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    // Forced Savings Mode Logic
+    bool isCriticalMode = false;
+    if (ui.forcedSavingsMode) {
+       double income = provider.transactions.where((t) => t.mainType == MainType.incomes).fold(0, (sum, t) => sum + t.amount);
+       double expense = provider.transactions.where((t) => t.mainType == MainType.expenses).fold(0, (sum, t) => sum + t.amount.abs());
+       if (expense > income * 0.9) { // Warning at 90%
+         isCriticalMode = true;
+       }
+    }
 
     final categoriesToShow = provider.categories.where((c) {
       if (isExpense) return c.kind == CategoryKind.expense;
@@ -141,16 +177,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }).toList();
 
     return Scaffold(
-      // backgroundColor: AppColors.background, // Handled by theme
+      backgroundColor: isCriticalMode ? Colors.red.shade50 : null,
       appBar: AppBar(
-        backgroundColor: Colors.transparent, // Let scaffold background show through
-        foregroundColor: theme.textTheme.titleLarge?.color,
+        backgroundColor: isCriticalMode ? Colors.red : Colors.transparent, 
+        foregroundColor: isCriticalMode ? Colors.white : theme.textTheme.titleLarge?.color,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Nueva transacción', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+            isCriticalMode ? '¡MODO AHORRO!' : 'Nueva transacción', 
+            style: const TextStyle(fontWeight: FontWeight.bold)
+        ),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -187,30 +226,62 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               
               const SizedBox(height: 12),
               Center(
-                child: IntrinsicWidth(
-                  child: TextFormField(
-                    autofocus: true,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: flowColor,
+                child: Column(
+                  children: [
+                    IntrinsicWidth(
+                      child: TextFormField(
+                        controller: _amountController,
+                        autofocus: true,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                          color: flowColor,
+                        ),
+                        decoration: InputDecoration(
+                          prefixText: _currency == 'PYG' ? '₲ ' : '$_currency ',
+                          border: InputBorder.none,
+                          hintText: '0',
+                          hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black12),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (_) => _updateCalculations(),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return 'Ingresa monto';
+                          final parsed = double.tryParse(value);
+                          if (parsed == null || parsed <= 0) return 'Inválido';
+                          return null;
+                        },
+                      ),
                     ),
-                    decoration: InputDecoration(
-                      prefixText: '₲ ',
-                      border: InputBorder.none,
-                      hintText: '0',
-                      hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black12),
-                  ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Ingresa monto';
-                      final parsed = double.tryParse(value);
-                      if (parsed == null || parsed <= 0) return 'Inválido';
-                      return null;
-                    },
-                    onSaved: (value) => _amount = double.parse(value!),
-                  ),
+                    if (_currency != 'PYG') ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Tasa: '),
+                          SizedBox(
+                            width: 80,
+                            child: TextFormField(
+                              controller: _rateController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                border: OutlineInputBorder(),
+                              ),
+                              onChanged: (_) => _updateCalculations(),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Text(
+                            '= ₲ ${NumberFormat('#,###', 'es_PY').format(_estimatedPYG)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
               
@@ -238,6 +309,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         const SizedBox(height: 12),
                         _buildDateSelector(),
                         const SizedBox(height: 24),
+                        _buildEventSelector(),
+
 
                         if (!isTransfer) ...[
                           _buildStatusSelector(),
@@ -337,6 +410,42 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  Widget _buildEventSelector() {
+    final provider = Provider.of<DataProvider>(context);
+    final events = provider.events.where((e) => e.isActive).toList();
+
+    if (events.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel('Evento (Opcional)', Icons.flight_takeoff),
+        const SizedBox(height: 12),
+        _buildDropdown(
+          key: ValueKey('event_$_selectedEventId'),
+          value: _selectedEventId,
+          items: [
+            const DropdownMenuItem(value: null, child: Text('Ninguno')),
+            ...events.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))),
+          ],
+          onChanged: (v) {
+            setState(() {
+              _selectedEventId = v;
+              if (v != null) {
+                final event = events.firstWhere((e) => e.id == v);
+                _currency = event.defaultCurrency ?? 'PYG';
+              } else {
+                _currency = 'PYG';
+              }
+              _updateCalculations();
+            });
+          },
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
   Widget _buildSectionLabel(String label, IconData icon) {
     final theme = Theme.of(context);
     return Row(
@@ -367,34 +476,40 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     return Row(
       children: [
-        _DateChip(
-          label: 'Hoy',
-          isSelected: isToday,
-          color: flowColor,
-          onTap: () => setState(() => _selectedDate = DateTime.now()),
+        Expanded(
+          child: _DateChip(
+            label: 'Hoy',
+            isSelected: isToday,
+            color: flowColor,
+            onTap: () => setState(() => _selectedDate = DateTime.now()),
+          ),
         ),
         const SizedBox(width: 12),
-        _DateChip(
-          label: 'Ayer',
-          isSelected: isYesterday,
-          color: flowColor,
-          onTap: () => setState(() => _selectedDate = DateTime.now().subtract(const Duration(days: 1))),
+        Expanded(
+          child: _DateChip(
+            label: 'Ayer',
+            isSelected: isYesterday,
+            color: flowColor,
+            onTap: () => setState(() => _selectedDate = DateTime.now().subtract(const Duration(days: 1))),
+          ),
         ),
         const SizedBox(width: 12),
-        _DateChip(
-          label: isOther ? '${_selectedDate.day}/${_selectedDate.month}' : 'Otro',
-          isSelected: isOther,
-          color: flowColor,
-          icon: Icons.calendar_today,
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _selectedDate,
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2030),
-            );
-            if (picked != null) setState(() => _selectedDate = picked);
-          },
+        Expanded(
+          child: _DateChip(
+            label: isOther ? '${_selectedDate.day}/${_selectedDate.month}' : 'Otro',
+            isSelected: isOther,
+            color: flowColor,
+            icon: Icons.calendar_today,
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _selectedDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030),
+              );
+              if (picked != null) setState(() => _selectedDate = picked);
+            },
+          ),
         ),
       ],
     );
@@ -406,17 +521,33 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     
     final accountItems = provider.accounts.map((e) => DropdownMenuItem(
           value: e.id,
-          child: Text(e.name, style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+          child: SizedBox(
+            width: double.infinity,
+            child: Text(
+              e.name,
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ));
 
     final goalItems = provider.goals.map((e) => DropdownMenuItem(
           value: e.id,
-          child: Row(
-            children: [
-              const Icon(Icons.flag, size: 16, color: AppColors.secondary),
-              const SizedBox(width: 8),
-              Text(e.name, style: const TextStyle(color: AppColors.secondary)),
-            ],
+          child: SizedBox(
+            width: double.infinity,
+            child: Row(
+              children: [
+                const Icon(Icons.flag, size: 16, color: AppColors.secondary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    e.name, 
+                    style: const TextStyle(color: AppColors.secondary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ));
 
@@ -584,7 +715,30 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  void _saveTransaction() {
+  Future<void> _saveTransaction() async {
+    final ui = Provider.of<UiProvider>(context, listen: false);
+    final provider = Provider.of<DataProvider>(context, listen: false);
+
+    if (ui.forcedSavingsMode && isExpense) {
+       double income = provider.transactions.where((t) => t.mainType == MainType.incomes).fold(0, (sum, t) => sum + t.amount);
+       double expense = provider.transactions.where((t) => t.mainType == MainType.expenses).fold(0, (sum, t) => sum + t.amount.abs());
+       
+       if (expense > income * 0.9) {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('⚠️ Alerta de Ahorro'),
+              content: const Text('Estás en Modo Ahorro Forzado y has superado el 90% de tus ingresos. ¿Realmente necesitas este gasto?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sí, es necesario', style: TextStyle(color: Colors.red))),
+              ],
+            ),
+          );
+          if (confirm != true) return;
+       }
+    }
+
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       
@@ -610,6 +764,40 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         final provider = Provider.of<DataProvider>(context, listen: false);
         final notes = _notesController.text.isNotEmpty ? _notesController.text : null;
 
+        // Anomaly Check (IDEAS.md 1.2)
+        if (isExpense && !isTransfer && _categoryId != null && _amount != null) {
+          // Calculate amount in default currency (PYG) for check
+          final amountToCheck = (_currency == 'PYG') ? (_amount ?? 0) : _estimatedPYG;
+          
+          final anomalyWarning = AnomalyService().checkAnomaly(
+            amountToCheck,
+            _categoryId!,
+            provider.transactions,
+          );
+
+          if (anomalyWarning != null) {
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('⚠️ Gasto Inusual'),
+                content: Text(anomalyWarning),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Corregir'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Guardar igual'),
+                  ),
+                ],
+              ),
+            );
+
+            if (confirm != true) return;
+          }
+        }
+
         if (isTransfer) {
           provider.addTransfer(
             amount: _amount!,
@@ -618,9 +806,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             date: _selectedDate,
             notes: notes,
           );
-          _showSuccess('Transferencia guardada');
+          // _showSuccess('Transferencia guardada');
         } else {
-          final finalAmount = isExpense ? -(_amount!.abs()) : _amount!.abs();
+          // Calculate amount in default currency (PYG)
+          final amountToSave = (_currency == 'PYG') ? (_amount ?? 0) : _estimatedPYG;
+          final finalAmount = isExpense ? -(amountToSave.abs()) : amountToSave.abs();
+          
           provider.addTransaction(
             amount: finalAmount,
             categoryId: _categoryId!,
@@ -632,13 +823,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             dueDate: _dueDate,
             isRecurring: _recurringFrequency != null,
             frequency: _recurringFrequency,
+            eventId: _selectedEventId,
+            originalAmount: (_currency != 'PYG') ? (_amount ?? 0) : null,
+            originalCurrency: (_currency != 'PYG') ? _currency : null,
+            exchangeRate: (_currency != 'PYG') ? (double.tryParse(_rateController.text) ?? 1) : null,
           );
-          _showSuccess('Movimiento guardado');
+          // _showSuccess('Movimiento guardado');
         }
 
-        Navigator.pop(context);
+        if (mounted) {
+      Navigator.pop(context);
+    }
       } catch (e) {
-        _showError(e.toString());
+        // _showError(e.toString());
       }
     }
   }
@@ -834,11 +1031,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+    // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
   }
   
   void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.green));
+    // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.green));
   }
 
   Future<String?> _createCategory({required CategoryKind kind}) async {
@@ -934,16 +1131,20 @@ class _DateChip extends StatelessWidget {
           border: isSelected ? null : Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
               Icon(icon, size: 16, color: isSelected ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.grey[600])),
               const SizedBox(width: 4),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.grey[600]),
-                fontWeight: FontWeight.bold,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.grey[600]),
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

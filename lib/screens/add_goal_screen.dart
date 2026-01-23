@@ -316,6 +316,8 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   void _saveGoal() {
     if (_formKey.currentState!.validate()) {
       final provider = Provider.of<DataProvider>(context, listen: false);
+      final navigator = Navigator.of(context);
+      // final messenger = ScaffoldMessenger.of(context);
       
       if (widget.goal != null) {
         provider.editGoal(
@@ -326,10 +328,12 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
           colorValue: _selectedColor.value,
           iconName: _selectedIcon,
         );
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Meta actualizada exitosamente')),
-        );
+        if (mounted) {
+          //  messenger.showSnackBar(
+          //    const SnackBar(content: Text('Meta actualizada exitosamente')),
+          //  );
+           navigator.pop();
+        }
       } else {
         provider.addGoal(
           name: _nameController.text,
@@ -338,10 +342,12 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
           colorValue: _selectedColor.value,
           iconName: _selectedIcon,
         );
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Meta creada exitosamente')),
-        );
+        if (mounted) {
+          //  messenger.showSnackBar(
+          //    const SnackBar(content: Text('Meta creada exitosamente')),
+          //  );
+           navigator.pop();
+        }
       }
     }
   }

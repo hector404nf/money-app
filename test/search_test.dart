@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:money_app/main.dart';
 import 'package:money_app/providers/data_provider.dart';
@@ -16,6 +17,7 @@ void main() {
 
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    await initializeDateFormatting(null, null);
     hiveTestDir = await Directory.systemTemp.createTemp('money_app_search_test_');
     Hive.init(hiveTestDir.path);
   });
@@ -109,8 +111,9 @@ void main() {
     expect(find.text('Taxi to Airport'), findsNothing);
 
     // 6. Clear search
-    await tester.tap(find.byIcon(Icons.clear));
-    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1)); // Wait for animation
 
     // 7. Verify all visible again
     expect(find.text('Pizza Party'), findsOneWidget);

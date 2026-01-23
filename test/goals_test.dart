@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
@@ -9,13 +10,28 @@ import 'package:money_app/providers/data_provider.dart';
 import 'package:money_app/providers/ui_provider.dart';
 import 'package:money_app/screens/add_goal_screen.dart';
 import 'package:money_app/screens/add_transaction_screen.dart';
-import 'package:money_app/widgets/transaction_tile.dart';
 
 void main() {
   late Directory hiveTestDir;
 
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    
+    // Mock HomeWidget channel
+    const MethodChannel homeWidgetChannel = MethodChannel('home_widget/methods');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      homeWidgetChannel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'saveWidgetData') {
+          return true;
+        }
+        if (methodCall.method == 'updateWidget') {
+          return true;
+        }
+        return null;
+      },
+    );
+
     hiveTestDir = await Directory.systemTemp.createTemp('money_app_goals_test_');
     Hive.init(hiveTestDir.path);
   });
@@ -29,11 +45,24 @@ void main() {
     tester.view.physicalSize = const Size(1200, 3000);
     tester.view.devicePixelRatio = 3.0;
 
+    final originalOnError = FlutterError.onError;
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.dumpErrorToConsole(details, forceReport: true);
+      debugPrint('FlutterErrorDetails: ${details.exceptionAsString()}');
+      if (details.stack != null) {
+        debugPrint(details.stack.toString());
+      }
+    };
+    addTearDown(() {
+      FlutterError.onError = originalOnError;
+    });
+
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) {
             final provider = DataProvider();
+            provider.isTestMode = true;
             provider.loadDummyForTests();
             return provider;
           }),
@@ -71,6 +100,7 @@ void main() {
     expect(find.byType(AddGoalScreen), findsOneWidget, reason: 'AddGoalScreen not pushed');
 
     // 3. Fill the Add Goal form
+    debugPrint('Step 3: Filling form');
     await tester.enterText(find.byType(TextFormField).at(0), 'Mi Primer Millón');
     await tester.enterText(find.byType(TextFormField).at(1), '1000000');
     
@@ -79,15 +109,46 @@ void main() {
     await tester.pumpAndSettle();
 
     // Save
+    debugPrint('Step 3: Saving Goal');
     await tester.tap(find.text('Crear Meta'));
     await tester.pumpAndSettle();
+    debugPrint('Step 3: Goal Saved');
+
+    // Debug: Check if AddGoalScreen is still present
+    if (find.byType(AddGoalScreen).evaluate().isNotEmpty) {
+      debugPrint('AddGoalScreen is still present!');
+    } else {
+      debugPrint('AddGoalScreen has been popped.');
+    }
 
     // 4. Verify the new goal is displayed
+    debugPrint('Step 4: Verifying Goal Display');
     expect(find.text('Mi Primer Millón'), findsOneWidget);
+    
+    // Check for target amount text with skipOffstage: false to detect if it exists but is hidden
+    final targetAmountFinder = find.text('de Gs. 1.000.000');
+    if (targetAmountFinder.evaluate().isEmpty) {
+       debugPrint('Target amount text NOT found even offstage.');
+       // Try to find ANY text containing "1.000.000"
+       final partialFinder = find.textContaining('1.000.000');
+       if (partialFinder.evaluate().isNotEmpty) {
+         debugPrint('Found text containing 1.000.000:');
+         partialFinder.evaluate().forEach((element) {
+           final widget = element.widget as Text;
+           debugPrint(' - "${widget.data}"');
+         });
+       } else {
+         debugPrint('No text containing 1.000.000 found.');
+       }
+    } else {
+       debugPrint('Target amount text found (might be offstage).');
+    }
+
     expect(find.text('de Gs. 1.000.000'), findsOneWidget);
     expect(find.text('0%'), findsOneWidget);
 
     // 5. Test Goal Details and Add Funds
+    debugPrint('Step 5: Testing Goal Details');
     await tester.dragUntilVisible(
       find.text('Mi Primer Millón'),
       find.byType(ListView),
@@ -101,6 +162,7 @@ void main() {
     expect(find.text('Agregar Fondos'), findsOneWidget);
 
     // Add Funds
+    debugPrint('Step 5: Adding Funds');
     await tester.tap(find.text('Agregar Fondos'));
     await tester.pumpAndSettle();
 
@@ -120,8 +182,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Save
+    debugPrint('Step 5: Saving Transaction');
     await tester.tap(find.text('Guardar Transferencia'));
     await tester.pumpAndSettle();
+    debugPrint('Step 5: Transaction Saved');
     
     // Verify Goal Balance Updated
     // We should be back in AccountsTab

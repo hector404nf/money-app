@@ -27,6 +27,7 @@ class AccountsTab extends StatelessWidget {
       0.0, 
       (sum, account) => sum + provider.getAccountBalance(account.id)
     );
+    final isNegative = totalBalance < 0;
 
     return SafeArea(
       top: true,
@@ -55,11 +56,11 @@ class AccountsTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: AppGradients.primary,
+              gradient: isNegative ? AppGradients.error : AppGradients.primary,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
+                  color: (isNegative ? AppColors.expense : AppColors.primary).withOpacity(0.3),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -198,29 +199,33 @@ class AccountsTab extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Gs. ${balance.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: theme.textTheme.bodyLarge?.color,
-                                fontSize: 16,
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Gs. ${balance.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.textTheme.bodyLarge?.color,
+                                  fontSize: 16,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                            if (account.initialBalance > 0)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  'Inicial: ${account.initialBalance.toStringAsFixed(0)}',
-                                  style: TextStyle(
-                                    color: (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary).withOpacity(0.7),
-                                    fontSize: 11,
+                              if (account.initialBalance > 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    'Inicial: ${account.initialBalance.toStringAsFixed(0)}',
+                                    style: TextStyle(
+                                      color: (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary).withOpacity(0.7),
+                                      fontSize: 11,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -583,12 +588,12 @@ class AccountsTab extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
-        final theme = Theme.of(context);
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
         final isDark = theme.brightness == Brightness.dark;
         
         return Container(
-          height: MediaQuery.of(context).size.height * 0.7,
+          height: MediaQuery.of(sheetContext).size.height * 0.7,
           decoration: BoxDecoration(
             color: theme.scaffoldBackgroundColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
@@ -666,19 +671,27 @@ class AccountsTab extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Gs. ${goal.currentAmount.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(goal.colorValue),
+                      Expanded(
+                        child: Text(
+                          'Gs. ${goal.currentAmount.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Color(goal.colorValue),
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Text(
-                        'Gs. ${goal.targetAmount.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Gs. ${goal.targetAmount.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
                         ),
                       ),
                     ],
@@ -693,7 +706,7 @@ class AccountsTab extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(sheetContext);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -724,7 +737,7 @@ class AccountsTab extends StatelessWidget {
                    Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () {
-                         Navigator.pop(context);
+                         Navigator.pop(sheetContext);
                          Navigator.push(
                            context,
                            MaterialPageRoute(
@@ -746,7 +759,7 @@ class AccountsTab extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(sheetContext);
                         _confirmDelete(context, goal, provider);
                       },
                       icon: const Icon(Icons.delete, color: Colors.red),

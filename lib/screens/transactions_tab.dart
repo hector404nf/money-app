@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
 import '../utils/constants.dart';
 import '../widgets/transaction_tile.dart';
+import '../widgets/calendar_view.dart';
+import '../widgets/prediction_card.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
 import 'transaction_details_screen.dart';
@@ -19,6 +21,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
   String _searchQuery = '';
   TransactionStatus? _filterStatus;
   DateTimeRange? _filterDateRange;
+  bool _isCalendarView = false;
 
   @override
   void dispose() {
@@ -48,19 +51,18 @@ class _TransactionsTabState extends State<TransactionsTab> {
     final provider = Provider.of<DataProvider>(context);
     final selectedMonthKey = provider.selectedMonthKey;
     
-    // Filter by Month
-    var transactions = selectedMonthKey == null
-        ? provider.transactions
-        : provider.transactions.where((t) => t.monthKey == selectedMonthKey).toList();
+    // 1. Start with all transactions
+    var filteredTransactions = provider.transactions;
 
+    // 2. Apply filters (Status, Date Range, Search) - EXCEPT Month
     // Filter by Status
     if (_filterStatus != null) {
-      transactions = transactions.where((t) => t.status == _filterStatus).toList();
+      filteredTransactions = filteredTransactions.where((t) => t.status == _filterStatus).toList();
     }
 
     // Filter by Date Range
     if (_filterDateRange != null) {
-      transactions = transactions.where((t) {
+      filteredTransactions = filteredTransactions.where((t) {
         return t.date.isAfter(_filterDateRange!.start.subtract(const Duration(days: 1))) &&
                t.date.isBefore(_filterDateRange!.end.add(const Duration(days: 1)));
       }).toList();
@@ -69,7 +71,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
     // Filter by Search Query
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      transactions = transactions.where((t) {
+      filteredTransactions = filteredTransactions.where((t) {
         final category = provider.categories.firstWhere(
           (c) => c.id == t.categoryId,
           orElse: () => Category(id: '', name: '', kind: CategoryKind.expense),
@@ -82,9 +84,27 @@ class _TransactionsTabState extends State<TransactionsTab> {
       }).toList();
     }
 
-    // Group by date
+    // 3. Prepare transactions for List View (Apply Month Filter)
+    var listTransactions = selectedMonthKey == null
+        ? filteredTransactions
+        : filteredTransactions.where((t) => t.monthKey == selectedMonthKey).toList();
+
+    // 4. Determine focused day for Calendar
+    DateTime? initialFocusedDay;
+    if (selectedMonthKey != null) {
+       try {
+         // Find any transaction in the selected month to get the year/month
+         // We search in provider.transactions to ensure we find the month even if filters hide all txs
+         final tx = provider.transactions.firstWhere((t) => t.monthKey == selectedMonthKey);
+         initialFocusedDay = tx.date;
+       } catch (_) {
+         // If no transaction found for that key (shouldn't happen if key exists), default to now
+       }
+    }
+
+    // Group by date for List View
     final Map<String, List<dynamic>> grouped = {};
-    for (var tx in transactions) {
+    for (var tx in listTransactions) {
       final dateKey = _formatDateKey(tx.date);
       if (!grouped.containsKey(dateKey)) {
         grouped[dateKey] = [];
@@ -113,7 +133,22 @@ class _TransactionsTabState extends State<TransactionsTab> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                     Container(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            _isCalendarView ? Icons.list : Icons.calendar_month,
+                            color: Theme.of(context).brightness == Brightness.dark ? AppColors.secondary : AppColors.primary,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isCalendarView = !_isCalendarView;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardTheme.color,
@@ -147,6 +182,8 @@ class _TransactionsTabState extends State<TransactionsTab> {
                     ),
                   ],
                 ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 // Search Bar and Filters
                 Row(
@@ -166,7 +203,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
                           prefixIcon: Icon(Icons.search, color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : Colors.grey),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
-                                  icon: Icon(Icons.clear, color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : Colors.grey),
+                                  icon: Icon(Icons.close, color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : Colors.grey),
                                   onPressed: () {
                                     _searchController.clear();
                                     setState(() {
@@ -211,10 +248,27 @@ class _TransactionsTabState extends State<TransactionsTab> {
             ),
           ),
           
+          // Prediction Card (IA)
+          if (!_isCalendarView &&
+              _searchQuery.isEmpty &&
+              _filterStatus == null &&
+              _filterDateRange == null &&
+              (selectedMonthKey == null || 
+               selectedMonthKey == '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}'))
+            PredictionCard(
+              transactions: provider.transactions,
+              currentBalance: provider.calculateTotalBalance(),
+            ),
+
           Expanded(
-            child: transactions.isEmpty
-                ? _buildEmptyState(context)
-                : ListView.builder(
+            child: _isCalendarView
+                ? CalendarView(
+                    transactions: filteredTransactions,
+                    initialFocusedDay: initialFocusedDay,
+                  )
+                : listTransactions.isEmpty
+                    ? _buildEmptyState(context)
+                    : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: sortedKeys.length,
                     itemBuilder: (context, index) {

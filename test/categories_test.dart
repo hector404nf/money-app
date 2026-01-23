@@ -50,6 +50,13 @@ void main() {
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
 
+    // Scroll to find 'Categorías' as it might be off-screen
+    await tester.dragUntilVisible(
+      find.text('Categorías'),
+      find.byType(ListView),
+      const Offset(0, -500),
+    );
+
     await tester.tap(find.text('Categorías'));
     await tester.pumpAndSettle();
 
@@ -74,7 +81,7 @@ void main() {
     
     // Scroll until we find the icon
     // Note: Icons are rendered as Icon(IconData). We can find by Icon.
-    final iconData = IconHelper.getIconByName('sports_esports');
+    final iconData = IconHelper.getIconByName('restaurant');
     
     await tester.dragUntilVisible(
       find.byIcon(iconData),

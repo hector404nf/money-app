@@ -39,6 +39,10 @@ class IconHelper {
       case 'category': return Icons.category;
       case 'flag': return Icons.flag;
       case 'star': return Icons.star;
+      case 'repeat': return Icons.repeat;
+      case 'dark_mode': return Icons.dark_mode;
+      case 'weekend': return Icons.weekend;
+      case 'ac_unit': return Icons.ac_unit;
       
       // Food & Drink
       case 'restaurant': return Icons.restaurant;

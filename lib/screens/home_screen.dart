@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:provider/provider.dart';
 import 'dashboard_tab.dart';
 import 'accounts_tab.dart';
 import 'transactions_tab.dart';
 import 'add_transaction_screen.dart';
+import 'ai_input_screen.dart';
 import 'sync_screen.dart';
+import 'achievements_screen.dart';
+import '../providers/data_provider.dart';
 import '../utils/constants.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  StreamSubscription? _achievementSubscription;
 
   final List<Widget> _tabs = const [
     DashboardTab(),
@@ -22,6 +28,58 @@ class _HomeScreenState extends State<HomeScreen> {
     TransactionsTab(),
     SettingsTab(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = Provider.of<DataProvider>(context, listen: false);
+      _achievementSubscription = provider.onAchievementUnlocked.listen((achievement) {
+        if (mounted) {
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Row(
+          //       children: [
+          //         const Icon(Icons.emoji_events, color: Colors.white),
+          //         const SizedBox(width: 12),
+          //         Expanded(
+          //           child: Column(
+          //             crossAxisAlignment: CrossAxisAlignment.start,
+          //             mainAxisSize: MainAxisSize.min,
+          //             children: [
+          //               const Text('¡Logro Desbloqueado!',
+          //                   style: TextStyle(fontWeight: FontWeight.bold)),
+          //               Text(achievement.title),
+          //             ],
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //     backgroundColor: AppColors.primary,
+          //     duration: const Duration(seconds: 4),
+          //     action: SnackBarAction(
+          //       label: 'VER',
+          //       textColor: Colors.white,
+          //       onPressed: () {
+          //         Navigator.push(
+          //           context,
+          //           MaterialPageRoute(
+          //               builder: (_) => const AchievementsScreen()),
+          //         );
+          //       },
+          //     ),
+          //   ),
+          // );
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _achievementSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,17 +111,32 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: SizedBox(
         width: 64,
         height: 64,
-        child: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
-            );
-          },
-          backgroundColor: AppColors.secondary,
-          elevation: 4,
-          shape: const CircleBorder(),
-          child: const Icon(Icons.add, color: Colors.white, size: 32),
+        child: Tooltip(
+          message: 'Toca para manual, mantén para IA',
+          child: Material(
+            color: AppColors.secondary,
+            shape: const CircleBorder(),
+            elevation: 4,
+            child: InkWell(
+              key: const Key('fab_add'),
+              customBorder: const CircleBorder(),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
+                );
+              },
+              onLongPress: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AiInputScreen()),
+                );
+              },
+              child: const Center(
+                child: Icon(Icons.add, color: Colors.white, size: 32),
+              ),
+            ),
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

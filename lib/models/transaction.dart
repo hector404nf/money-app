@@ -34,6 +34,10 @@ class Transaction {
   final RecurringFrequency? frequency;
   final DateTime? recursUntil;
   final String? parentRecurringId;
+  final String? eventId;
+  final double? originalAmount;
+  final String? originalCurrency;
+  final double? exchangeRate;
 
   const Transaction({
     required this.id,
@@ -53,6 +57,10 @@ class Transaction {
     this.frequency,
     this.recursUntil,
     this.parentRecurringId,
+    this.eventId,
+    this.originalAmount,
+    this.originalCurrency,
+    this.exchangeRate,
   });
 
   Map<String, dynamic> toMap() {
@@ -74,6 +82,10 @@ class Transaction {
       'frequency': frequency?.name,
       'recursUntil': recursUntil?.millisecondsSinceEpoch,
       'parentRecurringId': parentRecurringId,
+      'eventId': eventId,
+      'originalAmount': originalAmount,
+      'originalCurrency': originalCurrency,
+      'exchangeRate': exchangeRate,
     };
   }
 
@@ -107,6 +119,10 @@ class Transaction {
           ? null
           : DateTime.fromMillisecondsSinceEpoch(map['recursUntil']),
       parentRecurringId: map['parentRecurringId'],
+      eventId: map['eventId'],
+      originalAmount: map['originalAmount'] != null ? (map['originalAmount'] as num).toDouble() : null,
+      originalCurrency: map['originalCurrency'],
+      exchangeRate: map['exchangeRate'] != null ? (map['exchangeRate'] as num).toDouble() : null,
     );
   }
 }

@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:money_app/main.dart';
 import 'package:money_app/providers/data_provider.dart';
 import 'package:money_app/providers/ui_provider.dart';
-import 'package:money_app/models/account.dart';
 import 'package:money_app/utils/constants.dart';
 
 void main() {
@@ -65,7 +64,8 @@ void main() {
     expect(find.text('Gs. 17.200.000'), findsOneWidget);
 
     // 2. Add a Pending Expense of 1,000,000
-    await tester.tap(find.byType(FloatingActionButton));
+    // Use Key because we replaced FAB with RawMaterialButton/InkWell
+    await tester.tap(find.byKey(const Key('fab_add')));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).first, '1000000');

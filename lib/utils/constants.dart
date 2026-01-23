@@ -53,4 +53,10 @@ class AppGradients {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static const error = LinearGradient(
+    colors: [AppColors.expense, Color(0xFFFF8A80)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

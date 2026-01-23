@@ -110,9 +110,12 @@ class TransactionTile extends StatelessWidget {
                             ),
                             if (dueDate != null) ...[
                               const SizedBox(width: 8),
-                              Text(
-                                'Vence: ${dueDate!.day}/${dueDate!.month}',
-                                style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                              Flexible(
+                                child: Text(
+                                  'Vence: ${dueDate!.day}/${dueDate!.month}',
+                                  style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ],
@@ -122,11 +125,15 @@ class TransactionTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                Text(
-                  '₲ ${amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
+                Flexible(
+                  child: Text(
+                    '₲ ${amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
                   ),
                 ),
               ],

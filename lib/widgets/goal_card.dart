@@ -120,7 +120,7 @@ class GoalCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Flexible(
+                    Expanded(
                       child: Text(
                         'Gs. ${_formatCurrency(currentAmount)}',
                         style: TextStyle(
@@ -132,7 +132,7 @@ class GoalCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Flexible(
+                    Expanded(
                       child: Text(
                         'de Gs. ${_formatCurrency(targetAmount)}',
                         style: TextStyle(
@@ -140,6 +140,7 @@ class GoalCard extends StatelessWidget {
                           fontSize: 12,
                         ),
                         overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
                       ),
                     ),
                   ],

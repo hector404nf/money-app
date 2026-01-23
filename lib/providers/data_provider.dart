@@ -2,14 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
 
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/transaction.dart';
 import '../models/goal.dart';
+import '../models/event.dart';
 import '../models/email_parser_template.dart';
+import '../models/achievement.dart';
+import '../models/challenge.dart';
+import '../services/gamification_service.dart';
 import '../services/cloud_sync_service.dart';
 import '../services/notification_service.dart';
+import '../services/home_widget_service.dart';
 import '../utils/constants.dart';
 
 class DataProvider extends ChangeNotifier {
@@ -18,20 +24,31 @@ class DataProvider extends ChangeNotifier {
   final List<Category> _categories = [];
   final List<Transaction> _transactions = [];
   final List<Goal> _goals = [];
+  final List<Event> _events = [];
   final List<EmailParserTemplate> _emailTemplates = [];
+  final List<Achievement> _achievements = [];
+  final List<Challenge> _challenges = [];
   String? _selectedMonthKey;
   Box<dynamic>? _box;
   final CloudSyncService _cloudSyncService = CloudSyncService();
   bool _isCloudSyncing = false;
   Timer? _cloudAutoUploadTimer;
   bool _cloudAutoUploadPending = false;
+  bool isTestMode = false;
+  
+  // Stream for new unlocks to show UI notifications
+  final _achievementUnlockedController = StreamController<Achievement>.broadcast();
+  Stream<Achievement> get onAchievementUnlocked => _achievementUnlockedController.stream;
 
   // Getters
   List<Account> get accounts => List.unmodifiable(_accounts);
   List<Category> get categories => List.unmodifiable(_categories);
   List<Transaction> get transactions => List.unmodifiable(_transactions);
   List<Goal> get goals => List.unmodifiable(_goals);
+  List<Event> get events => List.unmodifiable(_events);
   List<EmailParserTemplate> get emailTemplates => List.unmodifiable(_emailTemplates);
+  List<Achievement> get achievements => List.unmodifiable(_achievements);
+  List<Challenge> get challenges => List.unmodifiable(_challenges);
   String? get selectedMonthKey => _selectedMonthKey;
   bool get isCloudSyncing => _isCloudSyncing;
   bool get isCloudSignedIn => _cloudSyncService.currentUser != null;
@@ -92,6 +109,8 @@ class DataProvider extends ChangeNotifier {
       final storedTransactions = _box!.get('transactions');
       final storedGoals = _box!.get('goals');
       final storedEmailTemplates = _box!.get('emailTemplates');
+      final storedAchievements = _box!.get('achievements');
+      final storedChallenges = _box!.get('challenges');
       final storedSelectedMonthKey = _box!.get('selectedMonthKey');
 
       final hasData = storedAccounts is List &&
@@ -145,10 +164,68 @@ class DataProvider extends ChangeNotifier {
             );
         }
 
+        // Initialize Achievements
+        final definitions = GamificationService.getDefinitions();
+        Map<String, Achievement> storedMap = {};
+        
+        if (storedAchievements is List) {
+          for (var m in storedAchievements) {
+            if (m is Map) {
+               try {
+                 final a = Achievement.fromMap(Map<String, dynamic>.from(m));
+                 storedMap[a.id] = a;
+               } catch (_) {}
+            }
+          }
+        }
+        
+        _achievements
+          ..clear()
+          ..addAll(definitions.map((def) {
+            if (storedMap.containsKey(def.id)) {
+              final stored = storedMap[def.id]!;
+              return def.copyWith(
+                isUnlocked: stored.isUnlocked,
+                unlockedAt: stored.unlockedAt,
+              );
+            }
+            return def;
+          }));
+
+        // Initialize Challenges
+        final challengeDefinitions = GamificationService.getChallengeDefinitions();
+        Map<String, Challenge> storedChallengeMap = {};
+        
+        if (storedChallenges is List) {
+          for (var m in storedChallenges) {
+            if (m is Map) {
+               try {
+                 final c = Challenge.fromMap(Map<String, dynamic>.from(m));
+                 storedChallengeMap[c.id] = c;
+               } catch (_) {}
+            }
+          }
+        }
+        
+        _challenges
+          ..clear()
+          ..addAll(challengeDefinitions.map((def) {
+            if (storedChallengeMap.containsKey(def.id)) {
+              final stored = storedChallengeMap[def.id]!;
+              return def.copyWith(
+                isActive: stored.isActive,
+                startDate: stored.startDate,
+                isCompleted: stored.isCompleted,
+              );
+            }
+            return def;
+          }));
+
         ensureRecurringTransactionsGenerated(DateTime.now());
         _transactions.sort((a, b) => b.date.compareTo(a.date));
         _selectedMonthKey = storedSelectedMonthKey as String?;
         notifyListeners();
+        _updateHomeWidget();
       } else {
         _addDefaultCategories();
         await _saveToStorage();
@@ -210,8 +287,66 @@ class DataProvider extends ChangeNotifier {
     await _box!.put('categories', _categories.map((c) => c.toMap()).toList());
     await _box!.put('transactions', _transactions.map((t) => t.toMap()).toList());
     await _box!.put('goals', _goals.map((g) => g.toMap()).toList());
+    await _box!.put('events', _events.map((e) => e.toMap()).toList());
     await _box!.put('emailTemplates', _emailTemplates.map((t) => t.toMap()).toList());
+    await _box!.put('achievements', _achievements.map((a) => a.toMap()).toList());
+    await _box!.put('challenges', _challenges.map((c) => c.toMap()).toList());
     await _box!.put('selectedMonthKey', _selectedMonthKey);
+  }
+
+  void unlockAchievement(String id) {
+    final index = _achievements.indexWhere((a) => a.id == id);
+    if (index != -1 && !_achievements[index].isUnlocked) {
+      _achievements[index] = _achievements[index].copyWith(
+        isUnlocked: true,
+        unlockedAt: DateTime.now(),
+      );
+      notifyListeners();
+      unawaited(_saveToStorage().catchError((_) {}));
+      _achievementUnlockedController.add(_achievements[index]);
+    }
+  }
+
+  void _checkGamification() {
+    if (isTestMode) return;
+    final newUnlocks = GamificationService.checkAchievements(_achievements, this);
+    
+    // Check challenges
+    final challengesChanged = GamificationService.checkChallenges(_challenges, this);
+    
+    if (newUnlocks.isNotEmpty || challengesChanged) {
+      notifyListeners();
+      unawaited(_saveToStorage().catchError((_) {}));
+      for (var ach in newUnlocks) {
+        _achievementUnlockedController.add(ach);
+      }
+    }
+  }
+
+  void joinChallenge(String challengeId) {
+    final index = _challenges.indexWhere((c) => c.id == challengeId);
+    if (index != -1) {
+      _challenges[index] = _challenges[index].copyWith(
+        isActive: true,
+        startDate: DateTime.now(),
+        isCompleted: false,
+      );
+      notifyListeners();
+      unawaited(_saveToStorage().catchError((_) {}));
+    }
+  }
+
+  void abandonChallenge(String challengeId) {
+    final index = _challenges.indexWhere((c) => c.id == challengeId);
+    if (index != -1) {
+      _challenges[index] = _challenges[index].copyWith(
+        isActive: false,
+        isCompleted: false,
+        startDate: null,
+      );
+      notifyListeners();
+      unawaited(_saveToStorage().catchError((_) {}));
+    }
   }
 
   void _scheduleCloudAutoUpload() {
@@ -308,6 +443,7 @@ class DataProvider extends ChangeNotifier {
         _selectedMonthKey = data.selectedMonthKey;
         await _saveToStorage();
         notifyListeners();
+        _updateHomeWidget();
       }
     } finally {
       _isCloudSyncing = false;
@@ -345,6 +481,19 @@ class DataProvider extends ChangeNotifier {
     }
 
     return account.initialBalance + totalMovements;
+  }
+
+  /// Calcula el saldo total (Patrimonio Neto)
+  double calculateTotalBalance() {
+    double total = 0;
+    for (var account in _accounts) {
+      total += getAccountBalance(account.id);
+    }
+    for (var goal in _goals) {
+      // Goals are separate from accounts in this list, so we add them too
+      total += goal.currentAmount;
+    }
+    return total;
   }
 
   /// Calcula Egresos REALES (Excluyendo transferencias y mulas)
@@ -549,6 +698,8 @@ class DataProvider extends ChangeNotifier {
     notifyListeners();
     unawaited(_saveToStorage().catchError((_) {}));
     _scheduleCloudAutoUpload();
+    _updateHomeWidget();
+    _checkGamification();
   }
 
   void addTransaction({
@@ -566,6 +717,10 @@ class DataProvider extends ChangeNotifier {
     RecurringFrequency? frequency,
     DateTime? recursUntil,
     String? parentRecurringId,
+    String? eventId,
+    double? originalAmount,
+    String? originalCurrency,
+    double? exchangeRate,
   }) {
     final newTx = Transaction(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // ID simple temporal
@@ -584,6 +739,10 @@ class DataProvider extends ChangeNotifier {
       frequency: frequency,
       recursUntil: recursUntil,
       parentRecurringId: parentRecurringId,
+      eventId: eventId,
+      originalAmount: originalAmount,
+      originalCurrency: originalCurrency,
+      exchangeRate: exchangeRate,
     );
 
     _transactions.add(newTx);
@@ -609,6 +768,8 @@ class DataProvider extends ChangeNotifier {
     notifyListeners();
     unawaited(_saveToStorage().catchError((_) {}));
     _scheduleCloudAutoUpload();
+    _updateHomeWidget();
+    _checkGamification();
   }
 
   void addTransfer({
@@ -691,6 +852,8 @@ class DataProvider extends ChangeNotifier {
     notifyListeners();
     unawaited(_saveToStorage().catchError((_) {}));
     _scheduleCloudAutoUpload();
+    _updateHomeWidget();
+    _checkGamification();
   }
 
   String addCategory({
@@ -767,13 +930,14 @@ class DataProvider extends ChangeNotifier {
     _scheduleCloudAutoUpload();
   }
 
-  void addAccount({
+  String addAccount({
     required String name,
     required double initialBalance,
     required AccountType type,
   }) {
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
     final newAccount = Account(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: id,
       name: name,
       initialBalance: initialBalance,
       type: type,
@@ -781,6 +945,7 @@ class DataProvider extends ChangeNotifier {
     _accounts.add(newAccount);
     notifyListeners();
     unawaited(_saveToStorage().catchError((_) {}));
+    return id;
   }
 
   void addAccountObject(Account account) {
@@ -862,6 +1027,7 @@ class DataProvider extends ChangeNotifier {
       notifyListeners();
       unawaited(_saveToStorage().catchError((_) {}));
       _scheduleCloudAutoUpload();
+      _updateHomeWidget();
     }
   }
 
@@ -882,9 +1048,11 @@ class DataProvider extends ChangeNotifier {
 
       _cancelNotificationForTransaction(tx);
       _transactions.removeAt(index);
+      
       notifyListeners();
       unawaited(_saveToStorage().catchError((_) {}));
       _scheduleCloudAutoUpload();
+      _updateHomeWidget();
     }
   }
 
@@ -956,15 +1124,51 @@ class DataProvider extends ChangeNotifier {
     _scheduleCloudAutoUpload();
   }
 
+  // --- Event Management ---
+
+  void addEvent(Event event) {
+    _events.add(event);
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+  }
+
+  void updateEvent(Event event) {
+    final index = _events.indexWhere((e) => e.id == event.id);
+    if (index != -1) {
+      _events[index] = event;
+      notifyListeners();
+      unawaited(_saveToStorage().catchError((_) {}));
+    }
+  }
+
+  void deleteEvent(String id) {
+    _events.removeWhere((e) => e.id == id);
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+  }
+
   // --- Helpers Notificaciones ---
 
   void _scheduleNotificationForTransaction(Transaction tx) {
     if (tx.dueDate != null && tx.status != TransactionStatus.pagado) {
+      // Schedule for 2 days before due date
+      DateTime scheduledDate = tx.dueDate!.subtract(const Duration(days: 2));
+      
+      // If 2 days before is already past, try 1 day before
+      if (scheduledDate.isBefore(DateTime.now())) {
+         scheduledDate = tx.dueDate!.subtract(const Duration(days: 1));
+      }
+      // If still past, try on the day (at start of day or current time?)
+      // NotificationService checks isBefore(now), so if it's past, it won't schedule.
+      if (scheduledDate.isBefore(DateTime.now())) {
+         scheduledDate = tx.dueDate!;
+      }
+
       NotificationService().schedulePaymentReminder(
         id: tx.id.hashCode,
         title: 'Recordatorio de Pago',
-        body: 'Vencimiento pendiente: ${AppColors.formatCurrency(tx.amount.abs())}',
-        scheduledDate: tx.dueDate!,
+        body: 'Vence el ${DateFormat('dd/MM').format(tx.dueDate!)}: ${AppColors.formatCurrency(tx.amount.abs())}',
+        scheduledDate: scheduledDate,
       );
     }
   }
@@ -1089,5 +1293,26 @@ class DataProvider extends ChangeNotifier {
     }
     
     notifyListeners();
+  }
+
+  // --- Home Widget Helper ---
+
+  void _updateHomeWidget() {
+    if (isTestMode) return;
+    // Calculate for current month, not selected month, as the widget should show current status
+    final now = DateTime.now();
+    final currentMonthKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    
+    double income = 0;
+    double expense = 0;
+
+    for (var tx in _transactions) {
+      if (tx.monthKey == currentMonthKey && tx.status == TransactionStatus.pagado) {
+         if (tx.amount > 0) income += tx.amount;
+         else expense += tx.amount.abs();
+      }
+    }
+    
+    HomeWidgetService.updateBudget(income, expense);
   }
 }

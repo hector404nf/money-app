@@ -47,5 +47,9 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Necesitamos acceso al micrófono para que puedas dictar tus transacciones.</string>
+		<key>NSSpeechRecognitionUsageDescription</key>
+		<string>Necesitamos permiso para convertir tu voz a texto.</string>
 	</dict>
 </plist>

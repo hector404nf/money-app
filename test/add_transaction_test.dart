@@ -43,7 +43,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Open Add Transaction Screen
-    await tester.tap(find.byType(FloatingActionButton));
+    // Use Key because we replaced FAB with RawMaterialButton/InkWell
+    await tester.tap(find.byKey(const Key('fab_add')));
     await tester.pumpAndSettle();
 
     // 1. Default state (Expense)

@@ -17,14 +17,20 @@ class HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNegative = amount < 0;
+    
     return Container(
       width: double.infinity,
       height: 220, // Altura fija para asegurar espacio para el decorado
       decoration: BoxDecoration(
-        gradient: AppGradients.primary,
+        gradient: isNegative ? AppGradients.error : AppGradients.primary,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          AppShadows.soft,
+          BoxShadow(
+            color: (isNegative ? AppColors.expense : AppColors.primary).withOpacity(0.15),
+            offset: const Offset(0, 4),
+            blurRadius: 20,
+          ),
         ],
       ),
       child: Material(
@@ -66,10 +72,14 @@ class HeroCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.trending_up, color: Colors.white, size: 16),
+                          Icon(
+                            isNegative ? Icons.trending_down : Icons.trending_up, 
+                            color: Colors.white, 
+                            size: 16
+                          ),
                           const SizedBox(width: 8),
                           Text(
-                            'Te sobraría',
+                            isNegative ? 'Te faltaría' : 'Te sobraría',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w500,

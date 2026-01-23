@@ -43,7 +43,8 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(FloatingActionButton));
+    // Use find.byKey(const Key('fab_add'))
+    await tester.tap(find.byKey(const Key('fab_add')));
     await tester.pumpAndSettle();
 
     // Verify SegmentedButton has 'Gasto' selected by default
