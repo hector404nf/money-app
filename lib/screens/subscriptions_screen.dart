@@ -16,6 +16,9 @@ class SubscriptionsScreen extends StatelessWidget {
     final provider = Provider.of<DataProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monthKey = provider.selectedMonthKey ?? '${today.year}-${today.month.toString().padLeft(2, '0')}';
 
     // Filter recurring transactions (Templates)
     // Only those that are recurring AND are parent templates (parentRecurringId == null)
@@ -26,6 +29,16 @@ class SubscriptionsScreen extends StatelessWidget {
              t.mainType == MainType.expenses &&
              t.frequency != null;
     }).toList();
+
+    subscriptions.sort((a, b) {
+      final aNext = _getNextChargeDate(provider.transactions, a, today);
+      final bNext = _getNextChargeDate(provider.transactions, b, today);
+
+      if (aNext == null && bNext == null) return 0;
+      if (aNext == null) return 1;
+      if (bNext == null) return -1;
+      return aNext.compareTo(bNext);
+    });
 
     // Calculate total monthly cost
     double totalMonthly = 0;
@@ -40,6 +53,9 @@ class SubscriptionsScreen extends StatelessWidget {
         totalMonthly += sub.amount.abs() * 30;
       }
     }
+
+    final incomes = provider.getIncomes(monthKey: monthKey);
+    final percentOfIncomes = incomes > 0 ? (totalMonthly / incomes) * 100 : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -56,8 +72,8 @@ class SubscriptionsScreen extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => const AddTransactionScreen(
                 initialFlow: TransactionFlow.expense,
-                // We can't easily preset recurring=true via constructor yet, 
-                // but user can toggle it. Or we could modify AddTransactionScreen.
+                initialStatus: TransactionStatus.programado,
+                initialRecurringFrequency: RecurringFrequency.monthly,
               ),
             ),
           );
@@ -113,6 +129,17 @@ class SubscriptionsScreen extends StatelessWidget {
                     fontSize: 14,
                   ),
                 ),
+                if (percentOfIncomes != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    '≈ ${percentOfIncomes.toStringAsFixed(0)}% de tus ingresos este mes',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -153,6 +180,14 @@ class SubscriptionsScreen extends StatelessWidget {
                     itemCount: subscriptions.length,
                     itemBuilder: (context, index) {
                       final sub = subscriptions[index];
+                      final nextTx = _getNextChargeTransaction(provider.transactions, sub, today);
+                      final nextCharge = nextTx == null ? null : (nextTx.dueDate ?? nextTx.date);
+                      final lastPaid = _getLastPaidDate(provider.transactions, sub);
+                      final lastPaidDay = lastPaid == null ? null : DateTime(lastPaid.year, lastPaid.month, lastPaid.day);
+                      final isInactive = lastPaidDay != null && today.difference(lastPaidDay).inDays > 60;
+                      final daysRemaining = nextCharge == null
+                          ? null
+                          : DateTime(nextCharge.year, nextCharge.month, nextCharge.day).difference(today).inDays;
                       final category = provider.categories.firstWhere(
                         (c) => c.id == sub.categoryId,
                         orElse: () => Category(
@@ -199,11 +234,23 @@ class SubscriptionsScreen extends StatelessWidget {
                                   fontSize: 13,
                                 ),
                               ),
-                              if (sub.dueDate != null)
+                              if (isInactive)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Text(
-                                    'Próximo cobro: ${DateFormat('dd/MM/yyyy').format(sub.dueDate!)}',
+                                    'Inactiva (sin pagos hace 60+ días)',
+                                    style: TextStyle(
+                                      color: isDark ? Colors.redAccent : Colors.red,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              if (nextCharge != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    'Próximo cobro: ${DateFormat('dd/MM/yyyy').format(nextCharge)}',
                                     style: TextStyle(
                                       color: isDark ? Colors.orangeAccent : Colors.orange,
                                       fontSize: 12,
@@ -211,10 +258,33 @@ class SubscriptionsScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ),
+                              if (daysRemaining != null && daysRemaining >= 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    daysRemaining == 0 ? 'Vence hoy' : 'Faltan $daysRemaining días',
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodySmall?.color,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              if (lastPaid != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    'Último pago: ${DateFormat('dd/MM/yyyy').format(lastPaid)}',
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodySmall?.color,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                           trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
@@ -225,13 +295,62 @@ class SubscriptionsScreen extends StatelessWidget {
                                   color: AppColors.expense,
                                 ),
                               ),
+                              const SizedBox(height: 4),
+                              PopupMenuButton<String>(
+                                onSelected: (value) async {
+                                  if (value == 'mark_paid') {
+                                    if (nextTx == null) return;
+                                    provider.updateTransactionStatus(nextTx.id, TransactionStatus.pagado);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Marcado como pagado')),
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  if (value == 'delete') {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Eliminar suscripción'),
+                                        content: const Text('Se eliminarán los cobros futuros de esta suscripción.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, false),
+                                            child: const Text('Cancelar'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('Eliminar'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirmed != true) return;
+                                    provider.deleteRecurringSeries(sub.id);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Suscripción eliminada')),
+                                      );
+                                    }
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  if (nextTx != null)
+                                    const PopupMenuItem<String>(
+                                      value: 'mark_paid',
+                                      child: Text('Marcar próximo como pagado'),
+                                    ),
+                                  const PopupMenuItem<String>(
+                                    value: 'delete',
+                                    child: Text('Eliminar'),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
-                          onTap: () {
-                             // Edit flow?
-                             // For now, simple alert or navigation to edit
-                             // Ideally pass existing transaction to AddTransactionScreen
-                          },
                         ),
                       );
                     },
@@ -255,5 +374,53 @@ class SubscriptionsScreen extends StatelessWidget {
       default:
         return 'Recurrente';
     }
+  }
+
+  DateTime? _getNextChargeDate(List<Transaction> all, Transaction template, DateTime today) {
+    final related = all.where((t) => t.id == template.id || t.parentRecurringId == template.id).where((t) => t.status != TransactionStatus.pagado).toList();
+    if (related.isEmpty) return null;
+
+    related.sort((a, b) {
+      final aDate = a.dueDate ?? a.date;
+      final bDate = b.dueDate ?? b.date;
+      return aDate.compareTo(bDate);
+    });
+
+    for (final tx in related) {
+      final d = tx.dueDate ?? tx.date;
+      final dayOnly = DateTime(d.year, d.month, d.day);
+      if (!dayOnly.isBefore(today)) return d;
+    }
+
+    return related.first.dueDate ?? related.first.date;
+  }
+
+  Transaction? _getNextChargeTransaction(List<Transaction> all, Transaction template, DateTime today) {
+    final related = all
+        .where((t) => t.id == template.id || t.parentRecurringId == template.id)
+        .where((t) => t.status != TransactionStatus.pagado)
+        .toList();
+    if (related.isEmpty) return null;
+
+    related.sort((a, b) {
+      final aDate = a.dueDate ?? a.date;
+      final bDate = b.dueDate ?? b.date;
+      return aDate.compareTo(bDate);
+    });
+
+    for (final tx in related) {
+      final d = tx.dueDate ?? tx.date;
+      final dayOnly = DateTime(d.year, d.month, d.day);
+      if (!dayOnly.isBefore(today)) return tx;
+    }
+
+    return related.first;
+  }
+
+  DateTime? _getLastPaidDate(List<Transaction> all, Transaction template) {
+    final related = all.where((t) => t.id == template.id || t.parentRecurringId == template.id).where((t) => t.status == TransactionStatus.pagado).toList();
+    if (related.isEmpty) return null;
+    related.sort((a, b) => b.date.compareTo(a.date));
+    return related.first.date;
   }
 }

@@ -116,12 +116,8 @@ class _DebtSnowballScreenState extends State<DebtSnowballScreen> {
     
     // Sort debts for Snowball (Lowest balance first)
     final snowballDebts = List<DebtItem>.from(_debts)..sort((a, b) => a.balance.compareTo(b.balance));
-    
-    // Sort debts for Avalanche (Highest rate first)
-    final avalancheDebts = List<DebtItem>.from(_debts)..sort((a, b) => b.rate.compareTo(a.rate));
 
     final snowballResult = _calculatePayoff(snowballDebts, extraPayment);
-    // final avalancheResult = _calculatePayoff(avalancheDebts, extraPayment); // Can implement comparison later
 
     setState(() {
       _simulationResult = snowballResult;

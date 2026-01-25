@@ -7,11 +7,14 @@ import '../widgets/hero_card.dart';
 import '../widgets/summary_card.dart';
 import '../widgets/quick_action_button.dart';
 import '../widgets/transaction_tile.dart';
+import '../widgets/streak_counter_widget.dart';
 import '../utils/constants.dart';
+import '../services/gamification_service.dart';
 import 'add_transaction_screen.dart';
 import 'transaction_details_screen.dart';
 import 'sync_screen.dart';
 import 'reports_screen.dart';
+import 'achievements_screen.dart';
 import '../services/update_service.dart';
 
 class DashboardTab extends StatefulWidget {
@@ -440,6 +443,26 @@ class _DashboardTabState extends State<DashboardTab> {
                   ),
                 );
               }
+            ),
+
+            // Streak Counter
+            Builder(
+              builder: (context) {
+                final streak = GamificationService.getCurrentStreak(provider.transactions);
+                
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: StreakCounterWidget(
+                    streakDays: streak,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AchievementsScreen()),
+                      );
+                    },
+                  ),
+                );
+              },
             ),
 
             Row(

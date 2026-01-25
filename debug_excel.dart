@@ -4,7 +4,7 @@ import 'package:excel/excel.dart';
 void main() {
   final file = File('c:\\projects\\money_app\\importar.xlsx');
   if (!file.existsSync()) {
-    print('File not found');
+    stdout.writeln('File not found');
     return;
   }
 
@@ -12,8 +12,8 @@ void main() {
   final excel = Excel.decodeBytes(bytes);
 
   for (var table in excel.tables.keys) {
-    print('Sheet: $table');
-    print('-------------------');
+    stdout.writeln('Sheet: $table');
+    stdout.writeln('-------------------');
     final sheet = excel.tables[table];
     if (sheet == null) continue;
     
@@ -26,9 +26,9 @@ void main() {
         if (cell is TextCellValue) return '"${cell.value}"';
         return cell.value.toString();
       }).toList();
-      print('Row $count: $rowData');
+      stdout.writeln('Row $count: $rowData');
       count++;
     }
-    print('\n');
+    stdout.writeln('\n');
   }
 }

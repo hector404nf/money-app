@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import 'categories_screen.dart';
 import 'email_import_screen.dart';
 import 'excel_import_screen.dart';
+import 'notification_settings_screen.dart';
 import 'subscriptions_screen.dart';
 import 'purchase_simulator_screen.dart';
 import 'debt_snowball_screen.dart';
@@ -21,9 +22,7 @@ class SyncScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ui = Provider.of<UiProvider>(context);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -55,7 +54,6 @@ class SettingsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final ui = Provider.of<UiProvider>(context);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return SafeArea(
       top: true,
@@ -239,6 +237,23 @@ class SettingsTab extends StatelessWidget {
               },
               activeColor: AppColors.primary,
             ),
+          ),
+          _SettingsTile(
+            icon: Icons.tune,
+            title: 'Configurar notificaciones',
+            subtitle: 'Resumen diario y recordatorios',
+            onTap: () {
+              if (!ui.notificationsEnabled) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Activa notificaciones para configurar')),
+                );
+                return;
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationSettingsScreen()),
+              );
+            },
           ),
           _SettingsTile(
             icon: Icons.payments_outlined,

@@ -228,7 +228,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: _colors.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  separatorBuilder: (context, index) => const SizedBox(width: 12),
                   itemBuilder: (context, index) {
                     final color = _colors[index];
                     return GestureDetector(

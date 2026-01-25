@@ -44,7 +44,7 @@ class NlpService {
       _isModelDownloaded = result;
       return result;
     } catch (e) {
-      print('Error downloading NLP model: $e');
+      debugPrint('Error downloading NLP model: $e');
       return false;
     }
   }
@@ -164,9 +164,7 @@ class NlpService {
     }
     
     // 2. Keyword mapping (Common PY context)
-    if (matchedCategory == null) {
-        matchedCategory = _heuristicMatch(lowerText);
-    }
+    matchedCategory ??= _heuristicMatch(lowerText);
 
     // If heuristic match detected Income (e.g. "devolvieron"), enforce isIncome=true
     if (matchedCategory == 'Ingresos') {
@@ -207,7 +205,7 @@ class NlpService {
             
             // Filter out common false positives for categories
             if (suggestedCategory != null) {
-                final lowerCat = suggestedCategory!.toLowerCase();
+                final lowerCat = suggestedCategory.toLowerCase();
                 if (lowerCat == 'mi' || lowerCat == 'mis' || lowerCat == 'tu' || lowerCat == 'tus' || lowerCat == 'su' || lowerCat == 'sus') {
                     suggestedCategory = null;
                 }
@@ -215,7 +213,7 @@ class NlpService {
 
             // Capitalize
             if (suggestedCategory != null && suggestedCategory.isNotEmpty) {
-                suggestedCategory = suggestedCategory![0].toUpperCase() + suggestedCategory!.substring(1).toLowerCase();
+                suggestedCategory = '${suggestedCategory[0].toUpperCase()}${suggestedCategory.substring(1).toLowerCase()}';
             }
         }
     }
@@ -230,13 +228,13 @@ class NlpService {
             suggestedAccount = match.group(1);
             
             // Avoid capturing same word as category if suggestedCategory matches
-            if (suggestedCategory != null && suggestedAccount!.toLowerCase() == suggestedCategory!.toLowerCase()) {
+            if (suggestedCategory != null && suggestedAccount != null && suggestedAccount.toLowerCase() == suggestedCategory.toLowerCase()) {
                 suggestedAccount = null;
             }
             
             // Capitalize
             if (suggestedAccount != null && suggestedAccount.isNotEmpty) {
-                suggestedAccount = suggestedAccount![0].toUpperCase() + suggestedAccount!.substring(1).toLowerCase();
+                suggestedAccount = '${suggestedAccount[0].toUpperCase()}${suggestedAccount.substring(1).toLowerCase()}';
             }
         }
     }

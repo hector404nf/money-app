@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/transaction.dart';
-import '../models/category.dart'; // Keep for types if needed, though mostly handled by service
 import '../models/account.dart'; // Keep for types if needed
 import '../providers/data_provider.dart';
 import '../utils/constants.dart';
@@ -182,7 +181,6 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -260,8 +258,7 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
               leading: const Icon(Icons.check_circle, color: AppColors.income),
               title: Text(_fileName!),
               subtitle: Text(
-                '${_previewTransactions.length} movimientos found' + 
-                (_newAccounts.isNotEmpty ? ' • ${_newAccounts.length} new accounts' : '')
+                '${_previewTransactions.length} movimientos found${_newAccounts.isNotEmpty ? ' • ${_newAccounts.length} new accounts' : ''}'
               ),
               trailing: IconButton(
                 icon: const Icon(Icons.refresh),

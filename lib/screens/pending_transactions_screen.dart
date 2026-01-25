@@ -14,7 +14,6 @@ class PendingTransactionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = Provider.of<DataProvider>(context);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     final pendingTransactions = provider.getPendingTransactions(monthKey: monthKey)
       ..sort((a, b) => a.date.compareTo(b.date)); // Sort ascending (earliest first)

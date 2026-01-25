@@ -19,12 +19,18 @@ class AddTransactionScreen extends StatefulWidget {
   final TransactionFlow? initialFlow;
   final String? initialAccountId;
   final String? initialToAccountId;
+  final TransactionStatus? initialStatus;
+  final DateTime? initialDueDate;
+  final RecurringFrequency? initialRecurringFrequency;
 
   const AddTransactionScreen({
     super.key,
     this.initialFlow,
     this.initialAccountId,
     this.initialToAccountId,
+    this.initialStatus,
+    this.initialDueDate,
+    this.initialRecurringFrequency,
   });
 
   @override
@@ -84,6 +90,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     
     if (widget.initialToAccountId != null && _flow == TransactionFlow.transfer) {
        _toAccountId = widget.initialToAccountId;
+    }
+
+    if (widget.initialStatus != null) {
+      _status = widget.initialStatus!;
+      if (_status == TransactionStatus.pagado) {
+        _dueDate = null;
+      }
+    }
+
+    if (widget.initialDueDate != null && _status != TransactionStatus.pagado) {
+      _dueDate = widget.initialDueDate;
+    }
+
+    if (widget.initialRecurringFrequency != null) {
+      _recurringFrequency = widget.initialRecurringFrequency;
     }
   }
 
@@ -517,7 +538,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   List<DropdownMenuItem<String>> _getAccountItems(DataProvider provider) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     
     final accountItems = provider.accounts.map((e) => DropdownMenuItem(
           value: e.id,
@@ -735,6 +755,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ],
             ),
           );
+          if (!mounted) return;
           if (confirm != true) return;
        }
     }
@@ -1032,10 +1053,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   void _showError(String message) {
     // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
-  }
-  
-  void _showSuccess(String message) {
-    // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.green));
   }
 
   Future<String?> _createCategory({required CategoryKind kind}) async {

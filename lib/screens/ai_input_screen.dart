@@ -68,16 +68,16 @@ class _AiInputScreenState extends State<AiInputScreen> {
     
     try {
       _speechAvailable = await _speech.initialize(
-          onError: (e) => print('Speech Error: $e'),
+          onError: (e) => debugPrint('Speech Error: $e'),
           onStatus: (s) {
-            print('Speech Status: $s');
+            debugPrint('Speech Status: $s');
             if (s == 'done' || s == 'notListening') {
                 setState(() => _isListening = false);
             }
           },
       );
     } catch (e) {
-      print('Speech Init Error: $e');
+      debugPrint('Speech Init Error: $e');
     }
     if (mounted) setState(() {});
   }
@@ -85,6 +85,7 @@ class _AiInputScreenState extends State<AiInputScreen> {
   void _listen() async {
       if (!_speechAvailable) {
           await _initSpeech();
+          if (!mounted) return;
           if (!_speechAvailable) {
              ScaffoldMessenger.of(context).showSnackBar(
                  const SnackBar(content: Text('Reconocimiento de voz no disponible'))
@@ -127,6 +128,8 @@ class _AiInputScreenState extends State<AiInputScreen> {
             provider.categories,
             provider.accounts
         );
+
+        if (!mounted) return;
         
         setState(() {
             _isProcessing = false;
@@ -146,7 +149,7 @@ class _AiInputScreenState extends State<AiInputScreen> {
             if (targetCategoryName != null) {
                 try {
                     _selectedCategory = provider.categories.firstWhere(
-                        (c) => c.name.toLowerCase() == targetCategoryName!.toLowerCase()
+                        (c) => c.name.toLowerCase() == targetCategoryName.toLowerCase()
                     );
                 } catch (_) {
                      // Not found -> Create it
@@ -160,7 +163,7 @@ class _AiInputScreenState extends State<AiInputScreen> {
                             kind = CategoryKind.expense;
                          } else {
                              // Fallback to name-based check
-                             final lowerName = targetCategoryName!.toLowerCase();
+                             final lowerName = targetCategoryName.toLowerCase();
                              if (lowerName.contains('ingreso') || 
                                  lowerName.contains('sueldo') || 
                                  lowerName.contains('salario') || 
@@ -172,7 +175,7 @@ class _AiInputScreenState extends State<AiInputScreen> {
                          }
 
                          final newId = provider.addCategory(
-                            name: targetCategoryName!, 
+                            name: targetCategoryName, 
                             kind: kind
                          );
                          _selectedCategory = provider.categories.firstWhere((c) => c.id == newId);
@@ -193,21 +196,22 @@ class _AiInputScreenState extends State<AiInputScreen> {
                     );
                 } catch (_) {}
             } else if (result.suggestedAccountName != null) {
+                 final suggestedAccountName = result.suggestedAccountName!;
                  try {
                     _selectedAccount = provider.accounts.firstWhere(
-                        (a) => a.name.toLowerCase() == result.suggestedAccountName!.toLowerCase()
+                        (a) => a.name.toLowerCase() == suggestedAccountName.toLowerCase()
                     );
                  } catch (_) {
                     // Create it
                     try {
                         final newId = provider.addAccount(
-                            name: result.suggestedAccountName!,
+                            name: suggestedAccountName,
                             type: AccountType.bank,
                             initialBalance: 0
                         );
                         _selectedAccount = provider.accounts.firstWhere((a) => a.id == newId);
                         ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Cuenta creada: ${result.suggestedAccountName}'))
+                            SnackBar(content: Text('Cuenta creada: $suggestedAccountName'))
                         );
                     } catch (e) {
                         debugPrint('Error creating account: $e');
@@ -219,10 +223,9 @@ class _AiInputScreenState extends State<AiInputScreen> {
             _noteController.text = _textController.text;
         });
       } catch (e) {
+        if (!mounted) return;
         setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al procesar: $e'))
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al procesar: $e')));
       }
   }
   

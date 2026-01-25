@@ -47,7 +47,7 @@ class AnomalyService {
 
     if (amount > threshold) {
       final percentDiff = ((amount - mean) / mean * 100).toStringAsFixed(0);
-      return 'Gasto inusual: ${percentDiff}% mayor al promedio (${mean.toStringAsFixed(0)})';
+      return 'Gasto inusual: $percentDiff% mayor al promedio (${mean.toStringAsFixed(0)})';
     }
 
     return null;

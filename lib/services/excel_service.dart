@@ -1,4 +1,5 @@
 import 'package:excel/excel.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
@@ -179,7 +180,7 @@ class ExcelService {
           newTransactions.add(t);
 
         } catch (e) {
-          print('Error parsing row: $e');
+          debugPrint('Error parsing row: $e');
           // Continue to next row
         }
       }

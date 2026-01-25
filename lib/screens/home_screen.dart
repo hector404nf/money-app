@@ -7,7 +7,6 @@ import 'transactions_tab.dart';
 import 'add_transaction_screen.dart';
 import 'ai_input_screen.dart';
 import 'sync_screen.dart';
-import 'achievements_screen.dart';
 import '../providers/data_provider.dart';
 import '../utils/constants.dart';
 
@@ -84,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       // backgroundColor handled by theme

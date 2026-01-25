@@ -200,7 +200,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: AccountType.values.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    separatorBuilder: (context, _) => const SizedBox(width: 12),
                     itemBuilder: (context, index) {
                       final type = AccountType.values[index];
                       final isSelected = _selectedType == type;

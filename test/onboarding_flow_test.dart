@@ -37,7 +37,7 @@ void main() {
     );
 
     // 2. Wait for Splash
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
 
     // 3. Verify Onboarding Screen
@@ -48,7 +48,7 @@ void main() {
     // The Onboarding screen has 4 pages. We need to tap the "Next" button 4 times.
     // The button contains an Icon (arrow_forward or check).
     
-    final buttonFinder = find.byType(ElevatedButton);
+    final buttonFinder = find.byType(FloatingActionButton);
     
     // Page 1 -> 2
     await tester.tap(buttonFinder);
@@ -87,7 +87,7 @@ void main() {
     );
 
     // 2. Wait for Splash
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
 
     // 3. Verify Home Screen directly

@@ -575,13 +575,18 @@ class DataProvider extends ChangeNotifier {
 
       if (chain.isEmpty) continue;
 
-      chain.sort((a, b) => a.date.compareTo(b.date));
+      chain.sort((a, b) {
+        final aDate = a.dueDate ?? a.date;
+        final bDate = b.dueDate ?? b.date;
+        return aDate.compareTo(bDate);
+      });
       var last = chain.last;
 
       while (true) {
-        final nextDate = _addFrequency(last.date, template.frequency!);
+        final anchor = last.dueDate ?? last.date;
+        final nextDate = _addFrequency(anchor, template.frequency!);
 
-        if (!nextDate.isAfter(last.date)) {
+        if (!nextDate.isAfter(anchor)) {
           break;
         }
 
@@ -605,7 +610,7 @@ class DataProvider extends ChangeNotifier {
           amount: template.amount,
           status: TransactionStatus.programado,
           subCategory: template.subCategory,
-          dueDate: template.dueDate ?? nextDate,
+          dueDate: nextDate,
           notes: template.notes,
           tags: template.tags,
           goalId: template.goalId,
@@ -613,6 +618,10 @@ class DataProvider extends ChangeNotifier {
           frequency: template.frequency,
           recursUntil: template.recursUntil,
           parentRecurringId: template.id,
+          eventId: template.eventId,
+          originalAmount: template.originalAmount,
+          originalCurrency: template.originalCurrency,
+          exchangeRate: template.exchangeRate,
         );
 
         _transactions.add(newTx);
@@ -1015,6 +1024,14 @@ class DataProvider extends ChangeNotifier {
         subCategory: old.subCategory,
         tags: old.tags,
         goalId: old.goalId,
+        isRecurring: old.isRecurring,
+        frequency: old.frequency,
+        recursUntil: old.recursUntil,
+        parentRecurringId: old.parentRecurringId,
+        eventId: old.eventId,
+        originalAmount: old.originalAmount,
+        originalCurrency: old.originalCurrency,
+        exchangeRate: old.exchangeRate,
       );
       
       // Update Notification
@@ -1029,6 +1046,43 @@ class DataProvider extends ChangeNotifier {
       _scheduleCloudAutoUpload();
       _updateHomeWidget();
     }
+  }
+
+  void deleteRecurringSeries(String templateId) {
+    final toDelete = _transactions
+        .where((t) => t.id == templateId || t.parentRecurringId == templateId)
+        .toList();
+    if (toDelete.isEmpty) return;
+
+    final Map<String, double> goalDeltas = {};
+
+    for (final tx in toDelete) {
+      if (tx.goalId != null && tx.status == TransactionStatus.pagado) {
+        goalDeltas[tx.goalId!] = (goalDeltas[tx.goalId!] ?? 0) - tx.amount.abs();
+      }
+
+      if (tx.accountId != tx.goalId && _goals.any((g) => g.id == tx.accountId) && tx.status == TransactionStatus.pagado) {
+        goalDeltas[tx.accountId] = (goalDeltas[tx.accountId] ?? 0) - tx.amount;
+      }
+
+      _cancelNotificationForTransaction(tx);
+    }
+
+    if (goalDeltas.isNotEmpty) {
+      for (final entry in goalDeltas.entries) {
+        final index = _goals.indexWhere((g) => g.id == entry.key);
+        if (index == -1) continue;
+        final old = _goals[index];
+        _goals[index] = old.copyWith(currentAmount: old.currentAmount + entry.value);
+      }
+    }
+
+    _transactions.removeWhere((t) => t.id == templateId || t.parentRecurringId == templateId);
+
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+    _scheduleCloudAutoUpload();
+    _updateHomeWidget();
   }
 
   void deleteTransaction(String id) {
@@ -1299,20 +1353,7 @@ class DataProvider extends ChangeNotifier {
 
   void _updateHomeWidget() {
     if (isTestMode) return;
-    // Calculate for current month, not selected month, as the widget should show current status
-    final now = DateTime.now();
-    final currentMonthKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
-    
-    double income = 0;
-    double expense = 0;
-
-    for (var tx in _transactions) {
-      if (tx.monthKey == currentMonthKey && tx.status == TransactionStatus.pagado) {
-         if (tx.amount > 0) income += tx.amount;
-         else expense += tx.amount.abs();
-      }
-    }
-    
-    HomeWidgetService.updateBudget(income, expense);
+    // Use the new comprehensive widget update
+    unawaited(HomeWidgetService.updateAllWidgets(this).catchError((_) {}));
   }
 }

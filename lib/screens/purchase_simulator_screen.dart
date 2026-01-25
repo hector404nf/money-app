@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
 import '../utils/constants.dart';
-import '../models/transaction.dart';
 
 class PurchaseSimulatorScreen extends StatefulWidget {
   const PurchaseSimulatorScreen({super.key});
@@ -114,13 +113,12 @@ class _PurchaseSimulatorScreenState extends State<PurchaseSimulatorScreen> {
       final deficit = price - _totalBalance!;
       
       if (_monthlySavingsAvg! > 0) {
-        final monthsNeeded = (price / _monthlySavingsAvg!).ceil(); // Saving from 0
         final monthsToWait = (deficit / _monthlySavingsAvg!).ceil(); // Saving from current balance
         
         setState(() {
           _resultColor = Colors.redAccent;
           _resultIcon = Icons.access_time;
-          _resultMessage = 'No te alcanza todavía.\nNecesitas ahorrar por ${monthsToWait} meses más (basado en tu ahorro promedio de ${AppColors.formatCurrency(_monthlySavingsAvg!)}).';
+          _resultMessage = 'No te alcanza todavía.\nNecesitas ahorrar por $monthsToWait meses más (basado en tu ahorro promedio de ${AppColors.formatCurrency(_monthlySavingsAvg!)}).';
         });
       } else {
          setState(() {

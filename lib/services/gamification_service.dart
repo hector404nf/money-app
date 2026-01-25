@@ -19,10 +19,22 @@ class GamificationService {
         iconName: 'repeat',
       ),
       const Achievement(
+        id: 'power_user',
+        title: 'Usuario Avanzado',
+        description: 'Registra 50 movimientos en total.',
+        iconName: 'star',
+      ),
+      const Achievement(
         id: 'saver_novice',
         title: 'Ahorrador Novato',
         description: 'Ten un saldo positivo.',
         iconName: 'savings',
+      ),
+      const Achievement(
+        id: 'millionaire',
+        title: 'Millonario',
+        description: 'Alcanza un saldo de 1.000.000 Gs o más.',
+        iconName: 'attach_money',
       ),
        const Achievement(
         id: 'night_owl',
@@ -43,10 +55,58 @@ class GamificationService {
         iconName: 'local_fire_department',
       ),
       const Achievement(
+        id: 'streak_30_days',
+        title: 'Mes Completo',
+        description: 'Mantén una racha de 30 días consecutivos.',
+        iconName: 'emoji_events',
+      ),
+      const Achievement(
         id: 'debt_snowball',
         title: 'Estratega',
         description: 'Visita la pantalla de Bola de Nieve.',
         iconName: 'ac_unit',
+      ),
+      const Achievement(
+        id: 'planner',
+        title: 'Planificador',
+        description: 'Crea 5 transacciones recurrentes.',
+        iconName: 'event_repeat',
+      ),
+      const Achievement(
+        id: 'minimalist',
+        title: 'Minimalista',
+        description: 'Pasa una semana sin gastos menores a 20.000 Gs.',
+        iconName: 'eco',
+      ),
+      const Achievement(
+        id: 'budget_master',
+        title: 'Maestro del Presupuesto',
+        description: 'Completa un mes sin exceder tus presupuestos.',
+        iconName: 'account_balance',
+      ),
+      const Achievement(
+        id: 'goal_achiever',
+        title: 'Cumplidor de Metas',
+        description: 'Completa tu primera meta de ahorro.',
+        iconName: 'check_circle',
+      ),
+      const Achievement(
+        id: 'zero_debt',
+        title: 'Libre de Deudas',
+        description: 'Liquida todas tus deudas pendientes.',
+        iconName: 'celebration',
+      ),
+      const Achievement(
+        id: 'early_bird',
+        title: 'Madrugador',
+        description: 'Registra un movimiento antes de las 7 AM.',
+        iconName: 'wb_sunny',
+      ),
+      const Achievement(
+        id: 'voice_user',
+        title: 'Comandos de Voz',
+        description: 'Usa el asistente de voz 5 veces.',
+        iconName: 'mic',
       ),
     ];
   }
@@ -237,5 +297,44 @@ class GamificationService {
       }
     }
     return hasChanges;
+  }
+
+  /// Calculate current streak of consecutive days with transactions
+  /// Returns the number of consecutive days (ending toda or most recent day) with at least one transaction
+  static int getCurrentStreak(List<Transaction> transactions) {
+    if (transactions.isEmpty) return 0;
+
+    // Get unique dates (without time component)
+    final dates = transactions
+        .map((t) => DateTime(t.date.year, t.date.month, t.date.day))
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a)); // Sort descending (most recent first)
+
+    if (dates.isEmpty) return 0;
+
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    
+    // If the most recent transaction is not today or yesterday, streak is broken
+    final mostRecent = dates.first;
+    final daysDiff = todayDate.difference(mostRecent).inDays;
+    
+    if (daysDiff > 1) {
+      return 0; // Streak is broken (more than 1 day since last transaction)
+    }
+
+    // Count consecutive days backwards from most recent
+    int streak = 1;
+    for (int i = 0; i < dates.length - 1; i++) {
+      final diff = dates[i].difference(dates[i + 1]).inDays;
+      if (diff == 1) {
+        streak++;
+      } else {
+        break; // Streak broken
+      }
+    }
+
+    return streak;
   }
 }

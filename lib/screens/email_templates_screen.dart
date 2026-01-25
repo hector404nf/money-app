@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
-import '../models/email_parser_template.dart';
 import 'manage_email_template_screen.dart';
 
 class EmailTemplatesScreen extends StatelessWidget {

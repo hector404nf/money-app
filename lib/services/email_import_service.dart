@@ -155,10 +155,7 @@ class EmailImportService {
 
       // 2. Fallback a lógica por defecto
       if (amount == null) {
-        var parsed = _parseAmountAndType(subject);
-        if (parsed == null) {
-          parsed = _parseAmountAndType(snippet);
-        }
+        final parsed = _parseAmountAndType(subject) ?? _parseAmountAndType(snippet);
         
         if (parsed != null) {
           amount = parsed.$1;

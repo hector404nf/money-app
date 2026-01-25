@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
 import '../providers/ui_provider.dart';
-import '../models/transaction.dart';
 import '../models/category.dart';
 import '../utils/constants.dart';
 import '../utils/icon_helper.dart';
@@ -583,7 +582,7 @@ class _CategoriesTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: sortedCategories.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         final entry = sortedCategories[index];
         final categoryId = entry.key;
@@ -604,8 +603,8 @@ class _CategoriesTab extends StatelessWidget {
         double progressValue;
         Widget? extraInfo;
 
-        if (hasBudget) {
-          final budgetPercent = amount / budget!;
+        if (budget != null && budget > 0) {
+          final budgetPercent = amount / budget;
           final budgetPercentInt = (budgetPercent * 100).toInt();
           
           if (budgetPercent >= 1.0) {

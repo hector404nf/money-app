@@ -39,7 +39,18 @@ void main() {
 
   tearDownAll(() async {
     await Hive.close();
-    await hiveTestDir.delete(recursive: true);
+    try {
+      if (await hiveTestDir.exists()) {
+        for (var attempt = 0; attempt < 5; attempt++) {
+          try {
+            await hiveTestDir.delete(recursive: true);
+            break;
+          } on PathAccessException {
+            await Future<void>.delayed(Duration(milliseconds: 100 * (attempt + 1)));
+          }
+        }
+      }
+    } catch (_) {}
   });
 
   group('GamificationService', () {
