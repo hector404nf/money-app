@@ -9,6 +9,7 @@ import 'ai_input_screen.dart';
 import 'sync_screen.dart';
 import '../providers/data_provider.dart';
 import '../utils/constants.dart';
+import '../services/ad_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -86,7 +87,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       // backgroundColor handled by theme
-      body: _tabs[_currentIndex],
+      body: Column(
+        children: [
+          Expanded(child: _tabs[_currentIndex]),
+          if (_currentIndex == 0 || _currentIndex == 2) // Show ads only on Dashboard and Transactions
+            SafeArea(
+              top: false,
+              child: AdService().getBannerWidget(),
+            ),
+        ],
+      ),
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8.0,

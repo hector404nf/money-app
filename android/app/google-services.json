@@ -56,6 +56,50 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:965639261864:android:5c3ce975597a417d1fbc9d",
+        "android_client_info": {
+          "package_name": "com.ikatu.controlfinanciero"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "965639261864-2f4udjv7i7recf9kgii6n7kvp6vooac4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ikatu.controlfinanciero",
+            "certificate_hash": "90dadfcc8fd55975bed9308453d5a1b348db4d7a"
+          }
+        },
+        {
+          "client_id": "965639261864-5poqfc8lfbi0gmr4onnqpnnedm3t5oq4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-AJAG8g5sm0u52oM0xZil1dQzDwFY6Rw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "965639261864-5poqfc8lfbi0gmr4onnqpnnedm3t5oq4.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "965639261864-5ghqoe3eisf04ll6mlb1649rueafh42u.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.moneyApp"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

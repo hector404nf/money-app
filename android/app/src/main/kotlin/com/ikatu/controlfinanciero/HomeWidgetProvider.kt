@@ -1,4 +1,4 @@
-package com.example.money_app
+package com.ikatu.controlfinanciero
 
 import android.appwidget.AppWidgetManager
 import android.content.Context

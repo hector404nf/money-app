@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../services/anomaly_service.dart';
+import '../services/ad_service.dart';
 import '../providers/data_provider.dart';
 import '../providers/ui_provider.dart';
 import '../models/transaction.dart';
@@ -849,6 +850,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             originalCurrency: (_currency != 'PYG') ? _currency : null,
             exchangeRate: (_currency != 'PYG') ? (double.tryParse(_rateController.text) ?? 1) : null,
           );
+          
+          // Try to show interstitial ad (controlled frequency)
+          AdService().showInterstitialIfReady();
+
           // _showSuccess('Movimiento guardado');
         }
 

@@ -9,6 +9,7 @@ import 'providers/data_provider.dart';
 import 'providers/ui_provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
+import 'services/ad_service.dart';
 import 'utils/constants.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
   await initializeDateFormatting('es_ES', null); // Initialize Spanish locale
   await Hive.initFlutter();
   await NotificationService().init();
+  await AdService().init();
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
