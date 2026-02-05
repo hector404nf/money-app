@@ -1,7 +1,8 @@
-import 'package:flutter/foundation.dart' hide Category;
+import 'package:flutter/material.dart';
 import 'package:google_mlkit_entity_extraction/google_mlkit_entity_extraction.dart';
 import '../models/category.dart';
 import '../models/account.dart';
+import '../models/category_rule.dart';
 
 class NlpResult {
   final double? amount;
@@ -37,7 +38,7 @@ class NlpService {
   final _entityExtractor = EntityExtractor(language: EntityExtractorLanguage.spanish);
   bool _isModelDownloaded = false;
 
-  Future<bool> ensureModelDownloaded() async {
+  Future<bool> ensureModelDownloaded(BuildContext? context) async {
     try {
       final modelManager = EntityExtractorModelManager();
       final result = await modelManager.downloadModel(EntityExtractorLanguage.spanish.name);
@@ -45,14 +46,24 @@ class NlpService {
       return result;
     } catch (e) {
       debugPrint('Error downloading NLP model: $e');
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al descargar modelo IA: $e'))
+        );
+      }
       return false;
     }
   }
 
-  Future<NlpResult> processText(String text, List<Category> categories, List<Account> accounts) async {
+  Future<NlpResult> processText(
+    String text, 
+    List<Category> categories, 
+    List<Account> accounts, 
+    {BuildContext? context, List<CategoryRule> rules = const []}
+  ) async {
     try {
         if (!_isModelDownloaded) {
-          await ensureModelDownloaded();
+          await ensureModelDownloaded(context);
         }
     } catch (e) {
         debugPrint('Model download/check failed: $e');
@@ -64,7 +75,6 @@ class NlpService {
       annotations = await _entityExtractor.annotateText(text);
     } catch (e) {
       debugPrint('ML Kit Annotation failed: $e');
-      // Continue with empty annotations to trigger fallback
     }
     
     double? amount;
@@ -74,15 +84,7 @@ class NlpService {
     for (final annotation in annotations) {
       for (final entity in annotation.entities) {
         if (entity is MoneyEntity) {
-          // Parse amount from rawValue as fallback/simplification
-          // Remove non-numeric characters except . and ,
-          String clean = entity.rawValue.replaceAll(RegExp(r'[^0-9.,]'), '');
-          // Normalize comma to dot if needed (assuming 1,000.00 or 1.000,00 format is complex, 
-          // but simple regex is better than missing fields)
-          // Actually, let's try to use integerPart and assume fractionalPart is named 'fraction' if we want to guess, 
-          // but parsing rawValue is safer for now.
-          clean = clean.replaceAll(',', '.'); // naive
-          amount = double.tryParse(clean);
+          amount = _parseNumber(entity.rawValue);
           currency = entity.unnormalizedCurrency;
         } else if (entity is DateTimeEntity) {
           date = DateTime.fromMillisecondsSinceEpoch(entity.timestamp);
@@ -155,12 +157,17 @@ class NlpService {
     // Heuristic Category Matching
     String? matchedCategory;
     
+    // 0. User Defined Rules
+    matchedCategory = _applyRules(lowerText, rules, categories);
+
     // 1. Direct match with existing category names
-    for (var cat in categories) {
+    if (matchedCategory == null) {
+      for (var cat in categories) {
         if (lowerText.contains(cat.name.toLowerCase())) {
-            matchedCategory = cat.name;
-            break; 
+          matchedCategory = cat.name;
+          break; 
         }
+      }
     }
     
     // 2. Keyword mapping (Common PY context)
@@ -301,5 +308,74 @@ class NlpService {
   
   Future<void> dispose() async {
       await _entityExtractor.close();
+  }
+
+  double? _parseNumber(String text) {
+    String clean = text.replaceAll(RegExp(r'[^0-9.,]'), '');
+    if (clean.isEmpty) return null;
+
+    // Check for both separators
+    if (clean.contains('.') && clean.contains(',')) {
+      if (clean.lastIndexOf('.') > clean.lastIndexOf(',')) {
+        // Format: 1,000.00 (US style)
+        clean = clean.replaceAll(',', '');
+      } else {
+        // Format: 1.000,00 (ES/PY style)
+        clean = clean.replaceAll('.', '').replaceAll(',', '.');
+      }
+    } else if (clean.contains('.')) {
+        // Only dots. E.g. 1.000 or 10.50
+        if (clean.split('.').length > 2) {
+             clean = clean.replaceAll('.', '');
+        } else {
+            int decimals = clean.length - clean.lastIndexOf('.') - 1;
+            if (decimals == 3) {
+                clean = clean.replaceAll('.', '');
+            }
+            // else assume it's already dot-decimal
+        }
+    } else if (clean.contains(',')) {
+         // Only commas. E.g. 1,000 or 10,50
+        if (clean.split(',').length > 2) {
+             clean = clean.replaceAll(',', '');
+        } else {
+            int decimals = clean.length - clean.lastIndexOf(',') - 1;
+            if (decimals == 3) {
+                 clean = clean.replaceAll(',', '');
+            } else {
+                 clean = clean.replaceAll(',', '.');
+            }
+        }
+    }
+    
+    return double.tryParse(clean);
+  }
+
+  String? _applyRules(String text, List<CategoryRule> rules, List<Category> categories) {
+    if (rules.isEmpty) return null;
+    
+    final lowerText = text.toLowerCase();
+    for (var rule in rules) {
+      if (!rule.active) continue;
+      
+      final pattern = rule.rulePattern.toLowerCase();
+      bool matches = false;
+      
+      if (rule.isStrict) {
+        matches = RegExp(r'\b' + RegExp.escape(pattern) + r'\b').hasMatch(lowerText);
+      } else {
+        matches = lowerText.contains(pattern);
+      }
+      
+      if (matches) {
+        try {
+          final cat = categories.firstWhere((c) => c.id == rule.categoryId);
+          return cat.name;
+        } catch (_) {
+          continue;
+        }
+      }
+    }
+    return null;
   }
 }

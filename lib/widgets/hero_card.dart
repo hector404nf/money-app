@@ -4,14 +4,17 @@ import '../utils/constants.dart';
 class HeroCard extends StatelessWidget {
   final double amount;
   final VoidCallback? onTap;
+  final bool isPrivacyEnabled;
 
   const HeroCard({
     super.key,
     required this.amount,
     this.onTap,
+    this.isPrivacyEnabled = false,
   });
 
   String _formatCurrency(double amount) {
+    if (isPrivacyEnabled) return '₲ ****';
     return '₲ ${amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 

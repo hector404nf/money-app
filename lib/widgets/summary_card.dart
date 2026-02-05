@@ -8,6 +8,7 @@ class SummaryCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final bool isLarge;
+  final bool isPrivacyEnabled;
 
   const SummaryCard({
     super.key,
@@ -17,6 +18,7 @@ class SummaryCard extends StatelessWidget {
     required this.icon,
     required this.color,
     this.isLarge = false,
+    this.isPrivacyEnabled = false,
   });
 
   @override
@@ -68,7 +70,9 @@ class SummaryCard extends StatelessWidget {
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
-              '₲ ${amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+              isPrivacyEnabled
+                  ? '₲ ****'
+                  : '₲ ${amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
               style: theme.textTheme.titleLarge?.copyWith(
                 color: theme.textTheme.titleLarge?.color,
                 fontWeight: FontWeight.bold,
@@ -79,7 +83,9 @@ class SummaryCard extends StatelessWidget {
           if (pendingAmount != null && pendingAmount != 0) ...[
             const SizedBox(height: 4),
             Text(
-              'Pendiente: ₲ ${pendingAmount!.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+              isPrivacyEnabled
+                  ? 'Pendiente: ₲ ****'
+                  : 'Pendiente: ₲ ${pendingAmount!.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: isDark ? Colors.white60 : AppColors.textSecondary,
                 fontSize: 11,

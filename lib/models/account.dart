@@ -61,6 +61,9 @@ class Account {
   final AccountType type;
   final double initialBalance;
   final bool isActive;
+  final double? creditLimit;
+  final int? closingDay;
+  final int? dueDay;
 
   const Account({
     required this.id,
@@ -68,6 +71,9 @@ class Account {
     required this.type,
     this.initialBalance = 0,
     this.isActive = true,
+    this.creditLimit,
+    this.closingDay,
+    this.dueDay,
   });
 
   Map<String, dynamic> toMap() {
@@ -77,6 +83,9 @@ class Account {
       'type': type.name,
       'initialBalance': initialBalance,
       'isActive': isActive,
+      'creditLimit': creditLimit,
+      'closingDay': closingDay,
+      'dueDay': dueDay,
     };
   }
 
@@ -88,6 +97,9 @@ class Account {
       type: type,
       initialBalance: (map['initialBalance'] as num?)?.toDouble() ?? 0,
       isActive: map['isActive'] as bool? ?? true,
+      creditLimit: (map['creditLimit'] as num?)?.toDouble(),
+      closingDay: map['closingDay'] as int?,
+      dueDay: map['dueDay'] as int?,
     );
   }
 }

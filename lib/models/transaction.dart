@@ -38,6 +38,7 @@ class Transaction {
   final double? originalAmount;
   final String? originalCurrency;
   final double? exchangeRate;
+  final String? debtId;
 
   const Transaction({
     required this.id,
@@ -61,7 +62,58 @@ class Transaction {
     this.originalAmount,
     this.originalCurrency,
     this.exchangeRate,
+    this.debtId,
   });
+
+  Transaction copyWith({
+    String? id,
+    DateTime? date,
+    String? monthKey,
+    MainType? mainType,
+    String? categoryId,
+    String? subCategory,
+    String? accountId,
+    double? amount,
+    TransactionStatus? status,
+    DateTime? dueDate,
+    String? notes,
+    List<String>? tags,
+    String? goalId,
+    bool? isRecurring,
+    RecurringFrequency? frequency,
+    DateTime? recursUntil,
+    String? parentRecurringId,
+    String? eventId,
+    double? originalAmount,
+    String? originalCurrency,
+    double? exchangeRate,
+    String? debtId,
+  }) {
+    return Transaction(
+      id: id ?? this.id,
+      date: date ?? this.date,
+      monthKey: monthKey ?? this.monthKey,
+      mainType: mainType ?? this.mainType,
+      categoryId: categoryId ?? this.categoryId,
+      subCategory: subCategory ?? this.subCategory,
+      accountId: accountId ?? this.accountId,
+      amount: amount ?? this.amount,
+      status: status ?? this.status,
+      dueDate: dueDate ?? this.dueDate,
+      notes: notes ?? this.notes,
+      tags: tags ?? this.tags,
+      goalId: goalId ?? this.goalId,
+      isRecurring: isRecurring ?? this.isRecurring,
+      frequency: frequency ?? this.frequency,
+      recursUntil: recursUntil ?? this.recursUntil,
+      parentRecurringId: parentRecurringId ?? this.parentRecurringId,
+      eventId: eventId ?? this.eventId,
+      originalAmount: originalAmount ?? this.originalAmount,
+      originalCurrency: originalCurrency ?? this.originalCurrency,
+      exchangeRate: exchangeRate ?? this.exchangeRate,
+      debtId: debtId ?? this.debtId,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -86,6 +138,7 @@ class Transaction {
       'originalAmount': originalAmount,
       'originalCurrency': originalCurrency,
       'exchangeRate': exchangeRate,
+      'debtId': debtId,
     };
   }
 
@@ -123,6 +176,7 @@ class Transaction {
       originalAmount: map['originalAmount'] != null ? (map['originalAmount'] as num).toDouble() : null,
       originalCurrency: map['originalCurrency'],
       exchangeRate: map['exchangeRate'] != null ? (map['exchangeRate'] as num).toDouble() : null,
+      debtId: map['debtId'],
     );
   }
 }

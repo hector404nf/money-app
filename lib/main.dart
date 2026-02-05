@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'providers/data_provider.dart';
 import 'providers/ui_provider.dart';
 import 'screens/splash_screen.dart';
+import 'screens/lock_screen.dart';
 import 'services/notification_service.dart';
 import 'services/ad_service.dart';
 import 'utils/constants.dart';
@@ -46,19 +47,54 @@ class MoneyApp extends StatefulWidget {
   State<MoneyApp> createState() => _MoneyAppState();
 }
 
-class _MoneyAppState extends State<MoneyApp> {
+class _MoneyAppState extends State<MoneyApp> with WidgetsBindingObserver {
   StreamSubscription? _widgetSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkWidgetLaunch();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _widgetSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkBiometricLock();
+    }
+  }
+
+  void _checkBiometricLock() {
+    // Check if biometric is enabled
+    // We use a slight delay to ensure the app is fully resumed and context is valid
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (!mounted) return;
+      try {
+         final uiProvider = Provider.of<UiProvider>(context, listen: false);
+         if (uiProvider.biometricEnabled && !LockScreen.isShown) {
+           // Check if we are already on LockScreen (optional, but good optimization)
+           // For now, we just push it. If user cancels, they can't access app anyway (pop disabled).
+          // But wait, if they cancel, we need to handle it. 
+          // Our LockScreen has no cancel button.
+          // But if they just background app again?
+          
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => const LockScreen(isResume: true),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error checking biometric lock: $e');
+      }
+    });
   }
 
   void _checkWidgetLaunch() {
@@ -98,9 +134,8 @@ class _MoneyAppState extends State<MoneyApp> {
 
     final lightTheme = ThemeData(
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
-        primary: AppColors.primary,
-        secondary: AppColors.secondary,
+        seedColor: ui.selectedTheme.color,
+        primary: ui.selectedTheme.color,
         surface: AppColors.surface,
       ),
       useMaterial3: true,
@@ -109,8 +144,8 @@ class _MoneyAppState extends State<MoneyApp> {
         bodyColor: AppColors.textPrimary,
         displayColor: AppColors.textPrimary,
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.primary,
+      appBarTheme: AppBarTheme(
+        backgroundColor: ui.selectedTheme.color,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -126,7 +161,7 @@ class _MoneyAppState extends State<MoneyApp> {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: ui.selectedTheme.color,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -135,8 +170,8 @@ class _MoneyAppState extends State<MoneyApp> {
           textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.secondary,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: ui.selectedTheme.color,
         foregroundColor: Colors.white,
         elevation: 4,
       ),
@@ -147,9 +182,8 @@ class _MoneyAppState extends State<MoneyApp> {
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
         brightness: Brightness.dark,
-        seedColor: AppColors.primary,
-        primary: AppColors.primary,
-        secondary: AppColors.secondary,
+        seedColor: ui.selectedTheme.color,
+        primary: ui.selectedTheme.color,
         surface: AppColors.darkSurface,
       ),
       scaffoldBackgroundColor: AppColors.darkBackground,
@@ -174,7 +208,7 @@ class _MoneyAppState extends State<MoneyApp> {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: ui.selectedTheme.color,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -183,8 +217,8 @@ class _MoneyAppState extends State<MoneyApp> {
           textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.secondary,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: ui.selectedTheme.color,
         foregroundColor: Colors.white,
         elevation: 4,
       ),

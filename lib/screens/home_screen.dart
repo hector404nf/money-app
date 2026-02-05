@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'dashboard_tab.dart';
 import 'accounts_tab.dart';
 import 'transactions_tab.dart';
+import 'settings_tab.dart';
 import 'add_transaction_screen.dart';
 import 'ai_input_screen.dart';
 import 'sync_screen.dart';

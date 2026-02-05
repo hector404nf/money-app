@@ -484,6 +484,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
         color: color,
         status: tx.status,
         dueDate: tx.dueDate,
+        isPrivacyEnabled: provider.isPrivacyEnabled,
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(

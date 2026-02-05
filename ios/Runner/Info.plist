@@ -51,5 +51,7 @@
 		<string>Necesitamos acceso al micrófono para que puedas dictar tus transacciones.</string>
 		<key>NSSpeechRecognitionUsageDescription</key>
 		<string>Necesitamos permiso para convertir tu voz a texto.</string>
+		<key>NSFaceIDUsageDescription</key>
+		<string>Para proteger tu privacidad y desbloquear la app.</string>
 	</dict>
 </plist>

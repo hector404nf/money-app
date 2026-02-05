@@ -299,4 +299,51 @@ class ExcelService {
   }
 
   String _normalize(String s) => s.toLowerCase().trim();
+
+  Future<List<int>?> generateExcel({
+    required List<Transaction> transactions,
+    required List<Account> accounts,
+    required List<Category> categories,
+  }) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['Transacciones'];
+    excel.delete('Sheet1'); // Remove default sheet
+
+    // Headers
+    final headers = [
+      'Fecha',
+      'Mes',
+      'Tipo',
+      'Categoría',
+      'Subcategoría',
+      'Cuenta',
+      'Monto',
+      'Estado',
+      'Notas',
+    ];
+
+    sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
+
+    // Data
+    for (var t in transactions) {
+      final accountName = accounts.firstWhere((a) => a.id == t.accountId, orElse: () => Account(id: '?', name: 'Desconocido', type: AccountType.other, initialBalance: 0)).name;
+      final categoryName = categories.firstWhere((c) => c.id == t.categoryId, orElse: () => Category(id: '?', name: 'Desconocido', kind: CategoryKind.expense)).name;
+      
+      final row = [
+        TextCellValue('${t.date.day}/${t.date.month}/${t.date.year}'),
+        TextCellValue(t.monthKey),
+        TextCellValue(t.amount >= 0 ? 'INGRESO' : 'GASTO'),
+        TextCellValue(categoryName),
+        TextCellValue(t.subCategory ?? ''),
+        TextCellValue(accountName),
+        DoubleCellValue(t.amount),
+        TextCellValue(t.status.name.toUpperCase()),
+        TextCellValue(t.notes ?? ''),
+      ];
+      
+      sheet.appendRow(row);
+    }
+
+    return excel.encode();
+  }
 }

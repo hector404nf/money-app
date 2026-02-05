@@ -26,6 +26,9 @@ class _AddAccountModalState extends State<AddAccountModal> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _balanceController;
+  late TextEditingController _limitController;
+  late TextEditingController _closingDayController;
+  late TextEditingController _dueDayController;
   late AccountType _selectedType;
 
   @override
@@ -35,6 +38,15 @@ class _AddAccountModalState extends State<AddAccountModal> {
     _balanceController = TextEditingController(
       text: widget.account?.initialBalance.toString() ?? '0',
     );
+    _limitController = TextEditingController(
+      text: widget.account?.creditLimit?.toString() ?? '',
+    );
+    _closingDayController = TextEditingController(
+      text: widget.account?.closingDay?.toString() ?? '',
+    );
+    _dueDayController = TextEditingController(
+      text: widget.account?.dueDay?.toString() ?? '',
+    );
     _selectedType = widget.account?.type ?? AccountType.cash;
   }
 
@@ -42,6 +54,9 @@ class _AddAccountModalState extends State<AddAccountModal> {
   void dispose() {
     _nameController.dispose();
     _balanceController.dispose();
+    _limitController.dispose();
+    _closingDayController.dispose();
+    _dueDayController.dispose();
     super.dispose();
   }
 
@@ -49,6 +64,23 @@ class _AddAccountModalState extends State<AddAccountModal> {
     if (_formKey.currentState!.validate()) {
       final name = _nameController.text;
       final balance = double.tryParse(_balanceController.text) ?? 0.0;
+      
+      double? creditLimit;
+      int? closingDay;
+      int? dueDay;
+
+      if (_selectedType == AccountType.card) {
+        if (_limitController.text.isNotEmpty) {
+          creditLimit = double.tryParse(_limitController.text);
+        }
+        if (_closingDayController.text.isNotEmpty) {
+          closingDay = int.tryParse(_closingDayController.text);
+        }
+        if (_dueDayController.text.isNotEmpty) {
+          dueDay = int.tryParse(_dueDayController.text);
+        }
+      }
+
       final provider = Provider.of<DataProvider>(context, listen: false);
 
       if (widget.account != null) {
@@ -58,6 +90,9 @@ class _AddAccountModalState extends State<AddAccountModal> {
           name: name,
           initialBalance: balance,
           type: _selectedType,
+          creditLimit: creditLimit,
+          closingDay: closingDay,
+          dueDay: dueDay,
         );
       } else {
         // Crear
@@ -65,6 +100,9 @@ class _AddAccountModalState extends State<AddAccountModal> {
           name: name,
           initialBalance: balance,
           type: _selectedType,
+          creditLimit: creditLimit,
+          closingDay: closingDay,
+          dueDay: dueDay,
         );
       }
 
@@ -156,7 +194,8 @@ class _AddAccountModalState extends State<AddAccountModal> {
                   controller: _balanceController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'Saldo actual',
+                    labelText: _selectedType == AccountType.card ? 'Deuda inicial (negativo)' : 'Saldo actual',
+                    hintText: _selectedType == AccountType.card ? '-1500000' : '0',
                     prefixText: 'Gs. ',
                     prefixIcon: const Icon(Icons.attach_money),
                     border: OutlineInputBorder(
@@ -254,6 +293,128 @@ class _AddAccountModalState extends State<AddAccountModal> {
                   ),
                 ),
                 const SizedBox(height: 32),
+
+                // Credit Card Specific Fields
+                if (_selectedType == AccountType.card) ...[
+                   Text(
+                    'Configuración de Tarjeta',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.textTheme.titleMedium?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Credit Limit
+                  TextFormField(
+                    controller: _limitController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Línea de Crédito (Límite)',
+                      prefixText: 'Gs. ',
+                      prefixIcon: const Icon(Icons.credit_score),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: theme.cardTheme.color,
+                    ),
+                    validator: (value) {
+                      // Optional
+                      if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                        return 'Ingresa un número válido';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      // Closing Day
+                      Expanded(
+                        child: TextFormField(
+                          controller: _closingDayController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Día de Cierre',
+                            hintText: 'Ej. 25',
+                            prefixIcon: const Icon(Icons.calendar_today),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                            ),
+                            filled: true,
+                            fillColor: theme.cardTheme.color,
+                          ),
+                          validator: (value) {
+                             if (value != null && value.isNotEmpty) {
+                               final n = int.tryParse(value);
+                               if (n == null || n < 1 || n > 31) {
+                                 return '1-31';
+                               }
+                             }
+                             return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Due Day
+                      Expanded(
+                        child: TextFormField(
+                          controller: _dueDayController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Día Vencimiento',
+                            hintText: 'Ej. 5',
+                            prefixIcon: const Icon(Icons.event_available),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                            ),
+                            filled: true,
+                            fillColor: theme.cardTheme.color,
+                          ),
+                          validator: (value) {
+                             if (value != null && value.isNotEmpty) {
+                               final n = int.tryParse(value);
+                               if (n == null || n < 1 || n > 31) {
+                                 return '1-31';
+                               }
+                             }
+                             return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                ],
 
                 // Save Button
                 SizedBox(

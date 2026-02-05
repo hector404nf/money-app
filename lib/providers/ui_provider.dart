@@ -10,6 +10,7 @@ class UiProvider extends ChangeNotifier {
   static const _paydayDayKey = 'paydayDay';
   static const _forcedSavingsKey = 'forcedSavingsMode';
   static const _visitedDebtSnowballKey = 'visitedDebtSnowball';
+  static const _biometricKey = 'biometricEnabled';
 
   ThemeMode _themeMode = ThemeMode.system;
   AppTheme _selectedTheme = AppTheme.oceanBlue;
@@ -18,6 +19,7 @@ class UiProvider extends ChangeNotifier {
   int? _paydayDay;
   bool _forcedSavingsMode = false;
   bool _visitedDebtSnowball = false;
+  bool _biometricEnabled = false;
 
   ThemeMode get themeMode => _themeMode;
   AppTheme get selectedTheme => _selectedTheme;
@@ -26,6 +28,7 @@ class UiProvider extends ChangeNotifier {
   int? get paydayDay => _paydayDay;
   bool get forcedSavingsMode => _forcedSavingsMode;
   bool get visitedDebtSnowball => _visitedDebtSnowball;
+  bool get biometricEnabled => _biometricEnabled;
 
   Future<void> load() async {
     final box = await Hive.openBox(_boxName);
@@ -35,6 +38,7 @@ class UiProvider extends ChangeNotifier {
     _paydayDay = box.get(_paydayDayKey) as int?;
     _forcedSavingsMode = box.get(_forcedSavingsKey, defaultValue: false) as bool;
     _visitedDebtSnowball = box.get(_visitedDebtSnowballKey, defaultValue: false) as bool;
+    _biometricEnabled = box.get(_biometricKey, defaultValue: false) as bool;
     
     // Load selected theme
     final savedTheme = box.get(_selectedThemeKey, defaultValue: 'oceanBlue') as String;
@@ -96,6 +100,13 @@ class UiProvider extends ChangeNotifier {
     notifyListeners();
     final box = await Hive.openBox(_boxName);
     await box.put(_paydayDayKey, day);
+  }
+
+  Future<void> setBiometricEnabled(bool enabled) async {
+    _biometricEnabled = enabled;
+    notifyListeners();
+    final box = await Hive.openBox(_boxName);
+    await box.put(_biometricKey, enabled);
   }
 
   Future<void> setForcedSavingsMode(bool enabled) async {
@@ -181,6 +192,23 @@ extension AppThemeExtension on AppTheme {
         return Icons.wb_sunny;
       case AppTheme.forestGreen:
         return Icons.park;
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case AppTheme.oceanBlue:
+        return const Color(0xFF004D40); // Teal
+      case AppTheme.dark:
+        return const Color(0xFF212121); // Dark Grey
+      case AppTheme.cherryBlossom:
+        return const Color(0xFFE91E63); // Pink
+      case AppTheme.professionalGrey:
+        return const Color(0xFF607D8B); // Blue Grey
+      case AppTheme.sunsetOrange:
+        return const Color(0xFFFF5722); // Deep Orange
+      case AppTheme.forestGreen:
+        return const Color(0xFF2E7D32); // Green
     }
   }
 }

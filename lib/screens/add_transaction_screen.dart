@@ -7,8 +7,11 @@ import '../providers/data_provider.dart';
 import '../providers/ui_provider.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
+import '../models/account.dart';
 import '../utils/constants.dart';
 import '../utils/icon_helper.dart';
+import 'scan_invoice_screen.dart';
+import '../services/ocr_service.dart';
 
 enum TransactionFlow {
   expense,
@@ -23,6 +26,11 @@ class AddTransactionScreen extends StatefulWidget {
   final TransactionStatus? initialStatus;
   final DateTime? initialDueDate;
   final RecurringFrequency? initialRecurringFrequency;
+  final Transaction? transactionToEdit;
+  final bool isRecurringConfig;
+  final double? initialAmount;
+  final DateTime? initialDate;
+  final String? initialNotes;
 
   const AddTransactionScreen({
     super.key,
@@ -32,6 +40,11 @@ class AddTransactionScreen extends StatefulWidget {
     this.initialStatus,
     this.initialDueDate,
     this.initialRecurringFrequency,
+    this.transactionToEdit,
+    this.isRecurringConfig = false,
+    this.initialAmount,
+    this.initialDate,
+    this.initialNotes,
   });
 
   @override
@@ -73,39 +86,89 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   TransactionStatus _status = TransactionStatus.pagado;
   DateTime? _dueDate;
   RecurringFrequency? _recurringFrequency;
+  int _installments = 1;
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialFlow != null) {
-      _flow = widget.initialFlow!;
-    }
     
-    if (widget.initialAccountId != null) {
-       if (_flow == TransactionFlow.transfer) {
-          _fromAccountId = widget.initialAccountId;
-       } else {
-          _accountId = widget.initialAccountId;
-       }
-    }
-    
-    if (widget.initialToAccountId != null && _flow == TransactionFlow.transfer) {
-       _toAccountId = widget.initialToAccountId;
-    }
-
-    if (widget.initialStatus != null) {
-      _status = widget.initialStatus!;
-      if (_status == TransactionStatus.pagado) {
-        _dueDate = null;
+    if (widget.transactionToEdit != null) {
+      final t = widget.transactionToEdit!;
+      _amount = t.amount.abs(); // Amount is always positive in UI
+      _amountController.text = _amount.toString();
+      _selectedDate = t.date;
+      _categoryId = t.categoryId;
+      _accountId = t.accountId;
+      _status = t.status;
+      _dueDate = t.dueDate;
+      _notesController.text = t.notes ?? '';
+      _recurringFrequency = t.frequency;
+      _selectedEventId = t.eventId;
+      
+      if (t.originalCurrency != null && t.originalCurrency != 'PYG') {
+         _currency = t.originalCurrency!;
+         _rateController.text = t.exchangeRate?.toString() ?? '1';
+         _updateCalculations();
       }
-    }
 
-    if (widget.initialDueDate != null && _status != TransactionStatus.pagado) {
-      _dueDate = widget.initialDueDate;
-    }
+      // Determine Flow
+      if (t.mainType == MainType.incomes) {
+         _flow = TransactionFlow.income;
+      } else {
+         _flow = TransactionFlow.expense;
+         // Note: Transfers are harder to detect purely from one transaction unless we check category kind
+         // or if we passed a "transfer pair" (which we aren't doing yet for editing).
+         // For now, simple editing of single transaction.
+      }
+    } else {
+      if (widget.initialFlow != null) {
+        _flow = widget.initialFlow!;
+      }
+      
+      if (widget.initialAccountId != null) {
+         if (_flow == TransactionFlow.transfer) {
+            _fromAccountId = widget.initialAccountId;
+         } else {
+            _accountId = widget.initialAccountId;
+         }
+      }
+      
+      if (widget.initialToAccountId != null && _flow == TransactionFlow.transfer) {
+         _toAccountId = widget.initialToAccountId;
+      }
+  
+      if (widget.initialStatus != null) {
+        _status = widget.initialStatus!;
+        if (_status == TransactionStatus.pagado) {
+          _dueDate = null;
+        }
+      }
+  
+      if (widget.initialDueDate != null && _status != TransactionStatus.pagado) {
+        _dueDate = widget.initialDueDate;
+      }
+  
+      if (widget.initialRecurringFrequency != null) {
+        _recurringFrequency = widget.initialRecurringFrequency;
+      }
+      
+      if (widget.isRecurringConfig) {
+              _recurringFrequency ??= RecurringFrequency.monthly;
+            }
 
-    if (widget.initialRecurringFrequency != null) {
-      _recurringFrequency = widget.initialRecurringFrequency;
+            if (widget.initialAmount != null) {
+        _amount = widget.initialAmount;
+        _amountController.text = _amount.toString();
+        _updateCalculations();
+      }
+      
+      if (widget.initialDate != null) {
+        _selectedDate = widget.initialDate!;
+      }
+      
+      if (widget.initialNotes != null) {
+        _notesController.text = widget.initialNotes!;
+      }
     }
   }
 
@@ -213,6 +276,34 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             style: const TextStyle(fontWeight: FontWeight.bold)
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.document_scanner_outlined),
+            tooltip: 'Escanear Factura',
+            onPressed: () async {
+              final result = await Navigator.push<OcrResult>(
+                context,
+                MaterialPageRoute(builder: (_) => const ScanInvoiceScreen()),
+              );
+
+              if (result != null) {
+                setState(() {
+                  if (result.amount != null) {
+                    _amount = result.amount;
+                    _amountController.text = _amount.toString();
+                    _updateCalculations();
+                  }
+                  if (result.date != null) {
+                    _selectedDate = result.date!;
+                  }
+                  if (result.merchant != null && result.merchant!.isNotEmpty) {
+                    _notesController.text = result.merchant!;
+                  }
+                });
+              }
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         top: true,
@@ -347,8 +438,70 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             key: ValueKey('account_${_flow}_$_accountId'),
                             value: _accountId,
                             items: provider.accounts.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(),
-                            onChanged: (v) => setState(() => _accountId = v),
+                            onChanged: (v) {
+                               setState(() {
+                                 _accountId = v;
+                                 // Reset installments if account is not a credit card
+                                 if (v != null) {
+                                    final account = provider.accounts.firstWhere((a) => a.id == v, orElse: () => provider.accounts.first);
+                                    if (account.type != AccountType.card) {
+                                      _installments = 1;
+                                    }
+                                 }
+                               });
+                            },
                           ),
+                          
+                          // Installments Section (Only for Credit Cards and Expense)
+                          if (isExpense && _accountId != null) ...[
+                             Builder(
+                               builder: (context) {
+                                 final account = provider.accounts.firstWhere((a) => a.id == _accountId, orElse: () => provider.accounts.first);
+                                 if (account.type == AccountType.card) {
+                                   return Column(
+                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                     children: [
+                                       const SizedBox(height: 24),
+                                       _buildSectionLabel('Cuotas', Icons.calendar_view_month),
+                                       const SizedBox(height: 12),
+                                       Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? Colors.black26 : Colors.white,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  _installments == 1 ? 'Al contado (1 cuota)' : '$_installments cuotas',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: theme.textTheme.bodyLarge?.color,
+                                                  ),
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.remove),
+                                                onPressed: _installments > 1 ? () => setState(() => _installments--) : null,
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.add),
+                                                onPressed: _installments < 36 ? () => setState(() => _installments++) : null,
+                                              ),
+                                            ],
+                                          ),
+                                       ),
+                                     ],
+                                   );
+                                 }
+                                 return const SizedBox.shrink();
+                               }
+                             ),
+                          ],
+
                           const SizedBox(height: 24),
                           _buildSectionLabel('Categoría', Icons.category),
                           const SizedBox(height: 12),
@@ -834,27 +987,112 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           final amountToSave = (_currency == 'PYG') ? (_amount ?? 0) : _estimatedPYG;
           final finalAmount = isExpense ? -(amountToSave.abs()) : amountToSave.abs();
           
-          provider.addTransaction(
-            amount: finalAmount,
-            categoryId: _categoryId!,
-            accountId: _accountId!,
-            date: _selectedDate,
-            notes: notes,
-            mainType: isExpense ? MainType.expenses : MainType.incomes,
-            status: _status,
-            dueDate: _dueDate,
-            isRecurring: _recurringFrequency != null,
-            frequency: _recurringFrequency,
-            eventId: _selectedEventId,
-            originalAmount: (_currency != 'PYG') ? (_amount ?? 0) : null,
-            originalCurrency: (_currency != 'PYG') ? _currency : null,
-            exchangeRate: (_currency != 'PYG') ? (double.tryParse(_rateController.text) ?? 1) : null,
-          );
-          
-          // Try to show interstitial ad (controlled frequency)
-          AdService().showInterstitialIfReady();
+          if (widget.transactionToEdit != null) {
+             final updatedTx = widget.transactionToEdit!.copyWith(
+                amount: finalAmount,
+                categoryId: _categoryId!,
+                accountId: _accountId!,
+                date: _selectedDate,
+                notes: notes,
+                mainType: isExpense ? MainType.expenses : MainType.incomes,
+                status: _status,
+                dueDate: _dueDate,
+                isRecurring: _recurringFrequency != null,
+                frequency: _recurringFrequency,
+                eventId: _selectedEventId,
+                originalAmount: (_currency != 'PYG') ? (_amount ?? 0) : null,
+                originalCurrency: (_currency != 'PYG') ? _currency : null,
+                exchangeRate: (_currency != 'PYG') ? (double.tryParse(_rateController.text) ?? 1) : null,
+             );
+             provider.updateTransaction(updatedTx);
+          } else {
+             // Installment Logic
+             if (isExpense && _installments > 1) {
+                final totalAmountPYG = (_currency == 'PYG') ? (_amount ?? 0) : _estimatedPYG;
+                final totalOriginalAmount = (_amount ?? 0);
+                
+                final amountPerInstallmentPYG = totalAmountPYG / _installments;
+                final originalAmountPerInstallment = totalOriginalAmount / _installments;
+                
+                for (int i = 0; i < _installments; i++) {
+                   // Calculate Date
+                   int targetYear = _selectedDate.year;
+                   int targetMonth = _selectedDate.month + i;
+                   int targetDay = _selectedDate.day;
+                   
+                   // Handle month overflow
+                   while (targetMonth > 12) {
+                     targetMonth -= 12;
+                     targetYear++;
+                   }
+                   
+                   // Handle days in month (e.g. Jan 31 -> Feb 28)
+                   final daysInTargetMonth = DateUtils.getDaysInMonth(targetYear, targetMonth);
+                   if (targetDay > daysInTargetMonth) {
+                     targetDay = daysInTargetMonth;
+                   }
+                   
+                   final installmentDate = DateTime(targetYear, targetMonth, targetDay, _selectedDate.hour, _selectedDate.minute);
+                   
+                   // Calculate Due Date (shift similarly if it exists)
+                   DateTime? installmentDueDate;
+                   if (_dueDate != null) {
+                      int dueYear = _dueDate!.year;
+                      int dueMonth = _dueDate!.month + i;
+                      int dueDay = _dueDate!.day;
+                      
+                      while (dueMonth > 12) {
+                        dueMonth -= 12;
+                        dueYear++;
+                      }
+                      
+                      final daysInDueMonth = DateUtils.getDaysInMonth(dueYear, dueMonth);
+                      if (dueDay > daysInDueMonth) {
+                        dueDay = daysInDueMonth;
+                      }
+                      installmentDueDate = DateTime(dueYear, dueMonth, dueDay);
+                   }
 
-          // _showSuccess('Movimiento guardado');
+                   final installmentNote = '${notes ?? ''} (Cuota ${i+1}/$_installments)'.trim();
+                   
+                   provider.addTransaction(
+                      amount: -amountPerInstallmentPYG.abs(),
+                      categoryId: _categoryId!,
+                      accountId: _accountId!,
+                      date: installmentDate,
+                      notes: installmentNote,
+                      mainType: MainType.expenses,
+                      status: _status,
+                      dueDate: installmentDueDate,
+                      isRecurring: false,
+                      frequency: null,
+                      eventId: _selectedEventId,
+                      originalAmount: (_currency != 'PYG') ? originalAmountPerInstallment : null,
+                      originalCurrency: (_currency != 'PYG') ? _currency : null,
+                      exchangeRate: (_currency != 'PYG') ? (double.tryParse(_rateController.text) ?? 1) : null,
+                   );
+                }
+             } else {
+                 provider.addTransaction(
+                    amount: finalAmount,
+                    categoryId: _categoryId!,
+                    accountId: _accountId!,
+                    date: _selectedDate,
+                    notes: notes,
+                    mainType: isExpense ? MainType.expenses : MainType.incomes,
+                    status: _status,
+                    dueDate: _dueDate,
+                    isRecurring: _recurringFrequency != null,
+                    frequency: _recurringFrequency,
+                    eventId: _selectedEventId,
+                    originalAmount: (_currency != 'PYG') ? (_amount ?? 0) : null,
+                    originalCurrency: (_currency != 'PYG') ? _currency : null,
+                    exchangeRate: (_currency != 'PYG') ? (double.tryParse(_rateController.text) ?? 1) : null,
+                 );
+             }
+             // Try to show interstitial ad (controlled frequency)
+             AdService().showInterstitialIfReady();
+          }
         }
 
         if (mounted) {

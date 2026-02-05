@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '../providers/data_provider.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
@@ -8,419 +9,379 @@ import '../utils/constants.dart';
 import '../utils/icon_helper.dart';
 import 'add_transaction_screen.dart';
 
-class SubscriptionsScreen extends StatelessWidget {
+class SubscriptionsScreen extends StatefulWidget {
   const SubscriptionsScreen({super.key});
 
   @override
+  State<SubscriptionsScreen> createState() => _SubscriptionsScreenState();
+}
+
+class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = _focusedDay;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<DataProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final monthKey = provider.selectedMonthKey ?? '${today.year}-${today.month.toString().padLeft(2, '0')}';
-
-    // Filter recurring transactions (Templates)
-    // Only those that are recurring AND are parent templates (parentRecurringId == null)
-    // And usually expenses
+    final provider = Provider.of<DataProvider>(context);
+    
+    // Filter for active recurring transaction templates (Subscriptions)
+    // We assume subscriptions are Expenses.
     final subscriptions = provider.transactions.where((t) {
       return t.isRecurring && 
              t.parentRecurringId == null && 
-             t.mainType == MainType.expenses &&
-             t.frequency != null;
+             t.frequency != null &&
+             t.amount < 0; // Only expenses
     }).toList();
 
-    subscriptions.sort((a, b) {
-      final aNext = _getNextChargeDate(provider.transactions, a, today);
-      final bNext = _getNextChargeDate(provider.transactions, b, today);
-
-      if (aNext == null && bNext == null) return 0;
-      if (aNext == null) return 1;
-      if (bNext == null) return -1;
-      return aNext.compareTo(bNext);
-    });
+    // Sort by amount (descending)
+    subscriptions.sort((a, b) => a.amount.abs().compareTo(b.amount.abs()));
 
     // Calculate total monthly cost
     double totalMonthly = 0;
     for (var sub in subscriptions) {
-      if (sub.frequency == RecurringFrequency.monthly) {
-        totalMonthly += sub.amount.abs();
-      } else if (sub.frequency == RecurringFrequency.weekly) {
-        totalMonthly += sub.amount.abs() * 4; // Approx
-      } else if (sub.frequency == RecurringFrequency.yearly) {
-        totalMonthly += sub.amount.abs() / 12;
-      } else if (sub.frequency == RecurringFrequency.daily) {
-        totalMonthly += sub.amount.abs() * 30;
+      double monthlyAmount = sub.amount.abs();
+      switch (sub.frequency) {
+        case RecurringFrequency.daily:
+          monthlyAmount *= 30;
+          break;
+        case RecurringFrequency.weekly:
+          monthlyAmount *= 4.33;
+          break;
+        case RecurringFrequency.monthly:
+          monthlyAmount *= 1;
+          break;
+        case RecurringFrequency.yearly:
+          monthlyAmount /= 12;
+          break;
+        default:
+          break;
       }
+      totalMonthly += monthlyAmount;
     }
 
-    final incomes = provider.getIncomes(monthKey: monthKey);
-    final percentOfIncomes = incomes > 0 ? (totalMonthly / incomes) * 100 : null;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Suscripciones'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: theme.textTheme.titleLarge?.color,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddTransactionScreen(
-                initialFlow: TransactionFlow.expense,
-                initialStatus: TransactionStatus.programado,
-                initialRecurringFrequency: RecurringFrequency.monthly,
-              ),
-            ),
-          );
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add),
-      ),
-      body: Column(
-        children: [
-          // Summary Card
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Column(
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Suscripciones'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: BackButton(color: theme.iconTheme.color),
+          bottom: TabBar(
+            labelColor: theme.textTheme.titleMedium?.color,
+            unselectedLabelColor: theme.textTheme.bodyMedium?.color,
+            indicatorColor: Colors.purple,
+            tabs: const [
+              Tab(text: 'Lista', icon: Icon(Icons.list)),
+              Tab(text: 'Calendario', icon: Icon(Icons.calendar_month)),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // Tab 1: List View
+            Column(
               children: [
-                const Text(
-                  'Costo Mensual Estimado',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  AppColors.formatCurrency(totalMonthly),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '${subscriptions.length} suscripciones activas',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
-                ),
-                if (percentOfIncomes != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    '≈ ${percentOfIncomes.toStringAsFixed(0)}% de tus ingresos este mes',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                // Summary Card
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isDark 
+                          ? [Colors.purple.shade900, Colors.deepPurple.shade900]
+                          : [Colors.purple.shade100, Colors.deepPurple.shade50],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
+                  child: Column(
+                    children: [
+                      Text(
+                        'Costo Mensual Estimado',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: isDark ? Colors.white70 : Colors.purple.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '₲ ${totalMonthly.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.purple.shade800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${subscriptions.length} suscripciones activas',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isDark ? Colors.white60 : Colors.purple.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // List
+                Expanded(
+                  child: subscriptions.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.repeat, size: 64, color: Colors.grey.withOpacity(0.5)),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No tienes suscripciones activas',
+                                style: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5)),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: subscriptions.length,
+                          itemBuilder: (context, index) {
+                            final sub = subscriptions[index];
+                            final category = provider.categories.firstWhere(
+                              (c) => c.id == sub.categoryId,
+                              orElse: () => Category(id: 'unknown', name: 'Otros', kind: CategoryKind.expense),
+                            );
+
+                            final color = AppColors.expense;
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              elevation: 0,
+                              color: theme.cardTheme.color,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+                              ),
+                              child: ListTile(
+                                leading: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    IconHelper.getIconByName(category.iconName ?? 'category'),
+                                    color: color,
+                                  ),
+                                ),
+                                title: Text(
+                                  (sub.notes?.isNotEmpty == true) ? sub.notes! : category.name,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text(
+                                  '${_getFrequencyText(sub.frequency)} • Próx: ${_formatDate(sub.dueDate ?? sub.date)}',
+                                  style: TextStyle(color: theme.textTheme.bodySmall?.color),
+                                ),
+                                trailing: Text(
+                                  '₲ ${sub.amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: AppColors.expense,
+                                  ),
+                                ),
+                                onTap: () {
+                                   Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => AddTransactionScreen(transactionToEdit: sub),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                ),
               ],
             ),
-          ),
 
-          // List
-          Expanded(
-            child: subscriptions.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.subscriptions_outlined,
-                          size: 64,
-                          color: theme.disabledColor,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No tienes suscripciones',
-                          style: TextStyle(
-                            color: theme.disabledColor,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Añade tus gastos recurrentes aquí',
-                          style: TextStyle(
-                            color: theme.disabledColor.withOpacity(0.7),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: subscriptions.length,
-                    itemBuilder: (context, index) {
-                      final sub = subscriptions[index];
-                      final nextTx = _getNextChargeTransaction(provider.transactions, sub, today);
-                      final nextCharge = nextTx == null ? null : (nextTx.dueDate ?? nextTx.date);
-                      final lastPaid = _getLastPaidDate(provider.transactions, sub);
-                      final lastPaidDay = lastPaid == null ? null : DateTime(lastPaid.year, lastPaid.month, lastPaid.day);
-                      final isInactive = lastPaidDay != null && today.difference(lastPaidDay).inDays > 60;
-                      final daysRemaining = nextCharge == null
-                          ? null
-                          : DateTime(nextCharge.year, nextCharge.month, nextCharge.day).difference(today).inDays;
-                      final category = provider.categories.firstWhere(
-                        (c) => c.id == sub.categoryId,
-                        orElse: () => Category(
-                          id: 'unknown',
-                          name: 'Desconocido',
-                          kind: CategoryKind.expense,
-                        ),
-                      );
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          leading: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: AppColors.expense.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              IconHelper.getIconByName(category.iconName ?? 'category'),
-                              color: AppColors.expense,
-                            ),
-                          ),
-                          title: Text(
-                            sub.notes?.isNotEmpty == true ? sub.notes! : category.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                _getFrequencyText(sub.frequency),
-                                style: TextStyle(
-                                  color: theme.textTheme.bodySmall?.color,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              if (isInactive)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    'Inactiva (sin pagos hace 60+ días)',
-                                    style: TextStyle(
-                                      color: isDark ? Colors.redAccent : Colors.red,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              if (nextCharge != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    'Próximo cobro: ${DateFormat('dd/MM/yyyy').format(nextCharge)}',
-                                    style: TextStyle(
-                                      color: isDark ? Colors.orangeAccent : Colors.orange,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              if (daysRemaining != null && daysRemaining >= 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    daysRemaining == 0 ? 'Vence hoy' : 'Faltan $daysRemaining días',
-                                    style: TextStyle(
-                                      color: theme.textTheme.bodySmall?.color,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              if (lastPaid != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    'Último pago: ${DateFormat('dd/MM/yyyy').format(lastPaid)}',
-                                    style: TextStyle(
-                                      color: theme.textTheme.bodySmall?.color,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          trailing: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                AppColors.formatCurrency(sub.amount.abs()),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: AppColors.expense,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              PopupMenuButton<String>(
-                                onSelected: (value) async {
-                                  if (value == 'mark_paid') {
-                                    if (nextTx == null) return;
-                                    provider.updateTransactionStatus(nextTx.id, TransactionStatus.pagado);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Marcado como pagado')),
-                                      );
-                                    }
-                                    return;
-                                  }
-
-                                  if (value == 'delete') {
-                                    final confirmed = await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text('Eliminar suscripción'),
-                                        content: const Text('Se eliminarán los cobros futuros de esta suscripción.'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(ctx, false),
-                                            child: const Text('Cancelar'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(ctx, true),
-                                            child: const Text('Eliminar'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-
-                                    if (confirmed != true) return;
-                                    provider.deleteRecurringSeries(sub.id);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Suscripción eliminada')),
-                                      );
-                                    }
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  if (nextTx != null)
-                                    const PopupMenuItem<String>(
-                                      value: 'mark_paid',
-                                      child: Text('Marcar próximo como pagado'),
-                                    ),
-                                  const PopupMenuItem<String>(
-                                    value: 'delete',
-                                    child: Text('Eliminar'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+            // Tab 2: Calendar View
+            _buildCalendarView(context, provider, subscriptions, isDark),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AddTransactionScreen(isRecurringConfig: true),
+              ),
+            );
+          },
+          backgroundColor: Colors.purple,
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       ),
     );
   }
 
-  String _getFrequencyText(RecurringFrequency? frequency) {
-    switch (frequency) {
-      case RecurringFrequency.daily:
-        return 'Diario';
-      case RecurringFrequency.weekly:
-        return 'Semanal';
-      case RecurringFrequency.monthly:
-        return 'Mensual';
-      case RecurringFrequency.yearly:
-        return 'Anual';
-      default:
-        return 'Recurrente';
+  Widget _buildCalendarView(BuildContext context, DataProvider provider, List<Transaction> subscriptions, bool isDark) {
+    final theme = Theme.of(context);
+    
+    // Get events for selected day
+    final eventsForDay = _getEventsForDay(_selectedDay ?? DateTime.now(), subscriptions);
+
+    return Column(
+      children: [
+        TableCalendar<Transaction>(
+          firstDay: DateTime.now().subtract(const Duration(days: 365)),
+          lastDay: DateTime.now().add(const Duration(days: 365)),
+          focusedDay: _focusedDay,
+          calendarFormat: _calendarFormat,
+          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+          onDaySelected: (selectedDay, focusedDay) {
+            setState(() {
+              _selectedDay = selectedDay;
+              _focusedDay = focusedDay;
+            });
+          },
+          onFormatChanged: (format) {
+             setState(() {
+               _calendarFormat = format;
+             });
+          },
+          onPageChanged: (focusedDay) {
+            _focusedDay = focusedDay;
+          },
+          eventLoader: (day) => _getEventsForDay(day, subscriptions),
+          calendarStyle: CalendarStyle(
+            markerDecoration: const BoxDecoration(
+              color: Colors.purple,
+              shape: BoxShape.circle,
+            ),
+            todayDecoration: BoxDecoration(
+              color: Colors.purple.withOpacity(0.5),
+              shape: BoxShape.circle,
+            ),
+            selectedDecoration: const BoxDecoration(
+              color: Colors.purple,
+              shape: BoxShape.circle,
+            ),
+            defaultTextStyle: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            weekendTextStyle: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            outsideTextStyle: TextStyle(color: theme.disabledColor),
+          ),
+          headerStyle: HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+            titleTextStyle: theme.textTheme.titleMedium!,
+            leftChevronIcon: Icon(Icons.chevron_left, color: theme.iconTheme.color),
+            rightChevronIcon: Icon(Icons.chevron_right, color: theme.iconTheme.color),
+          ),
+        ),
+        const Divider(),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: eventsForDay.length,
+            itemBuilder: (context, index) {
+              final sub = eventsForDay[index];
+              final category = provider.categories.firstWhere(
+                (c) => c.id == sub.categoryId,
+                orElse: () => Category(id: 'unknown', name: 'Otros', kind: CategoryKind.expense),
+              );
+              
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: 0,
+                color: theme.cardTheme.color,
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.expense.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      IconHelper.getIconByName(category.iconName ?? 'category'),
+                      color: AppColors.expense,
+                    ),
+                  ),
+                  title: Text(
+                    (sub.notes?.isNotEmpty == true) ? sub.notes! : category.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text('Vence hoy'),
+                  trailing: Text(
+                    '₲ ${sub.amount.abs().toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.expense,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Transaction> _getEventsForDay(DateTime day, List<Transaction> subscriptions) {
+    return subscriptions.where((sub) {
+      final start = sub.dueDate ?? sub.date;
+      
+      // Basic logic for recurrence check
+      switch (sub.frequency) {
+        case RecurringFrequency.daily:
+          return true;
+        case RecurringFrequency.weekly:
+          return day.weekday == start.weekday;
+        case RecurringFrequency.monthly:
+          int dueDay = start.day;
+          int lastDayOfCurrentMonth = DateTime(day.year, day.month + 1, 0).day;
+          
+          if (dueDay > lastDayOfCurrentMonth) {
+            // Handle month end overflow (e.g. due 31st, current month has 30 or 28 days)
+            return day.day == lastDayOfCurrentMonth;
+          }
+          return day.day == dueDay;
+        case RecurringFrequency.yearly:
+          return day.month == start.month && day.day == start.day;
+        default:
+          return false;
+      }
+    }).toList();
+  }
+
+  String _getFrequencyText(RecurringFrequency? freq) {
+    switch (freq) {
+      case RecurringFrequency.daily: return 'Diario';
+      case RecurringFrequency.weekly: return 'Semanal';
+      case RecurringFrequency.monthly: return 'Mensual';
+      case RecurringFrequency.yearly: return 'Anual';
+      default: return 'Recurrente';
     }
   }
 
-  DateTime? _getNextChargeDate(List<Transaction> all, Transaction template, DateTime today) {
-    final related = all.where((t) => t.id == template.id || t.parentRecurringId == template.id).where((t) => t.status != TransactionStatus.pagado).toList();
-    if (related.isEmpty) return null;
-
-    related.sort((a, b) {
-      final aDate = a.dueDate ?? a.date;
-      final bDate = b.dueDate ?? b.date;
-      return aDate.compareTo(bDate);
-    });
-
-    for (final tx in related) {
-      final d = tx.dueDate ?? tx.date;
-      final dayOnly = DateTime(d.year, d.month, d.day);
-      if (!dayOnly.isBefore(today)) return d;
-    }
-
-    return related.first.dueDate ?? related.first.date;
-  }
-
-  Transaction? _getNextChargeTransaction(List<Transaction> all, Transaction template, DateTime today) {
-    final related = all
-        .where((t) => t.id == template.id || t.parentRecurringId == template.id)
-        .where((t) => t.status != TransactionStatus.pagado)
-        .toList();
-    if (related.isEmpty) return null;
-
-    related.sort((a, b) {
-      final aDate = a.dueDate ?? a.date;
-      final bDate = b.dueDate ?? b.date;
-      return aDate.compareTo(bDate);
-    });
-
-    for (final tx in related) {
-      final d = tx.dueDate ?? tx.date;
-      final dayOnly = DateTime(d.year, d.month, d.day);
-      if (!dayOnly.isBefore(today)) return tx;
-    }
-
-    return related.first;
-  }
-
-  DateTime? _getLastPaidDate(List<Transaction> all, Transaction template) {
-    final related = all.where((t) => t.id == template.id || t.parentRecurringId == template.id).where((t) => t.status == TransactionStatus.pagado).toList();
-    if (related.isEmpty) return null;
-    related.sort((a, b) => b.date.compareTo(a.date));
-    return related.first.date;
+  String _formatDate(DateTime date) {
+    return DateFormat('dd/MM/yyyy').format(date);
   }
 }

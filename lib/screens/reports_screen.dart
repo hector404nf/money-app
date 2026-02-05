@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
 import '../providers/data_provider.dart';
 import '../providers/ui_provider.dart';
 import '../models/category.dart';
 import '../utils/constants.dart';
 import '../utils/icon_helper.dart';
+import '../services/excel_service.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
@@ -46,6 +51,56 @@ class ReportsScreen extends StatelessWidget {
             ],
           ),
           centerTitle: false,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.download, color: theme.iconTheme.color),
+              tooltip: 'Exportar a Excel',
+              onPressed: () async {
+                final transactions = provider.transactions;
+                if (transactions.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No hay transacciones para exportar')),
+                  );
+                  return;
+                }
+
+                try {
+                  final excelService = ExcelService();
+                  final bytes = await excelService.generateExcel(
+                    transactions: transactions,
+                    accounts: provider.accounts,
+                    categories: provider.categories,
+                  );
+
+                  if (bytes != null) {
+                    final fileName = 'money_app_report_${DateFormat('yyyyMMdd').format(DateTime.now())}.xlsx';
+                    final result = await FilePicker.platform.saveFile(
+                      dialogTitle: 'Guardar Reporte',
+                      fileName: fileName,
+                      type: FileType.custom,
+                      allowedExtensions: ['xlsx'],
+                      bytes: Uint8List.fromList(bytes),
+                    );
+
+                    if (result != null) {
+                       if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Reporte guardado en: $result')),
+                        );
+                      }
+                    }
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error al exportar: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         body: Column(
           children: [
@@ -163,6 +218,7 @@ class ReportsScreen extends StatelessWidget {
                 children: [
                   _SummaryTab(),
                   _CategoriesTab(),
+                  _TrendsTab(),
                 ],
               ),
             ),
@@ -535,8 +591,15 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-class _CategoriesTab extends StatelessWidget {
+class _CategoriesTab extends StatefulWidget {
   const _CategoriesTab();
+
+  @override
+  State<_CategoriesTab> createState() => _CategoriesTabState();
+}
+
+class _CategoriesTabState extends State<_CategoriesTab> {
+  int touchedIndex = -1;
 
   @override
   Widget build(BuildContext context) {
@@ -545,19 +608,9 @@ class _CategoriesTab extends StatelessWidget {
     final provider = Provider.of<DataProvider>(context);
     final monthKey = provider.selectedMonthKey;
 
-    // Filter transactions by month and expense type
-    final transactions = provider.transactions.where((t) {
-      final matchesMonth = monthKey == null || t.monthKey == monthKey;
-      return matchesMonth && t.amount < 0; // Only expenses
-    }).toList();
-
-    final totalExpense = transactions.fold(0.0, (sum, t) => sum + t.amount.abs());
-
-    // Group by category
-    final categoryTotals = <String, double>{};
-    for (var t in transactions) {
-      categoryTotals[t.categoryId] = (categoryTotals[t.categoryId] ?? 0) + t.amount.abs();
-    }
+    // Use provider logic for consistent "Real Expenses" calculation
+    final categoryTotals = provider.getRealExpensesByCategory(monthKey: monthKey);
+    final totalExpense = categoryTotals.values.fold(0.0, (sum, val) => sum + val);
 
     // Convert to list and sort
     final sortedCategories = categoryTotals.entries.toList()
@@ -579,139 +632,403 @@ class _CategoriesTab extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: sortedCategories.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final entry = sortedCategories[index];
-        final categoryId = entry.key;
-        final amount = entry.value;
-        final percentage = totalExpense > 0 ? (amount / totalExpense) : 0.0;
-        final percentageInt = (percentage * 100).toInt();
+    // Palette for charts
+    final List<Color> palette = [
+      Colors.blue, Colors.red, Colors.green, Colors.orange, Colors.purple,
+      Colors.teal, Colors.pink, Colors.indigo, Colors.amber, Colors.cyan,
+      Colors.brown, Colors.lime, Colors.deepOrange, Colors.lightBlue, Colors.deepPurple
+    ];
 
-        final category = provider.categories.firstWhere(
-          (c) => c.id == categoryId,
-          orElse: () => Category(id: 'unknown', name: 'Desconocido', kind: CategoryKind.expense),
-        );
-
-        final budget = category.monthlyBudget;
-        final hasBudget = budget != null && budget > 0;
-        
-        String subtext;
-        Color progressColor;
-        double progressValue;
-        Widget? extraInfo;
-
-        if (budget != null && budget > 0) {
-          final budgetPercent = amount / budget;
-          final budgetPercentInt = (budgetPercent * 100).toInt();
-          
-          if (budgetPercent >= 1.0) {
-            progressColor = Colors.red;
-          } else if (budgetPercent >= 0.8) {
-            progressColor = Colors.orange;
-          } else {
-            progressColor = Colors.teal;
-          }
-          
-          progressValue = budgetPercent.clamp(0.0, 1.0);
-          subtext = '${AppColors.formatCurrency(amount)} de ${AppColors.formatCurrency(budget)} ($budgetPercentInt%)';
-          
-          if (budgetPercent > 1.0) {
-            extraInfo = Padding(
-              padding: const EdgeInsets.only(top: 4.0),
-              child: Text(
-                'Excedido por ${AppColors.formatCurrency(amount - budget)}',
-                style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
-              ),
-            );
-          }
-        } else {
-          subtext = '$percentageInt% del total';
-          progressColor = Colors.blueAccent;
-          progressValue = percentage;
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.cardTheme.color,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      children: [
+        // Pie Chart
+        AspectRatio(
+          aspectRatio: 1.3,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: hasBudget ? progressColor.withOpacity(0.1) : (isDark ? Colors.blue.withOpacity(0.1) : Colors.blue.shade50),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      IconHelper.getIconByName(category.iconName ?? 'category'),
-                      color: hasBudget ? progressColor : Colors.blue,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          category.name,
-                          style: TextStyle(
+              const SizedBox(height: 18),
+              Expanded(
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: PieChart(
+                    PieChartData(
+                      pieTouchData: PieTouchData(
+                        touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                          setState(() {
+                            if (!event.isInterestedForInteractions ||
+                                pieTouchResponse == null ||
+                                pieTouchResponse.touchedSection == null) {
+                              touchedIndex = -1;
+                              return;
+                            }
+                            touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                          });
+                        },
+                      ),
+                      borderData: FlBorderData(show: false),
+                      sectionsSpace: 0,
+                      centerSpaceRadius: 40,
+                      sections: List.generate(sortedCategories.length, (i) {
+                        final isTouched = i == touchedIndex;
+                        final fontSize = isTouched ? 25.0 : 16.0;
+                        final radius = isTouched ? 60.0 : 50.0;
+                        final entry = sortedCategories[i];
+                        final percentage = totalExpense > 0 ? (entry.value / totalExpense) : 0.0;
+                        final color = palette[i % palette.length];
+
+                        return PieChartSectionData(
+                          color: color,
+                          value: entry.value,
+                          title: '${(percentage * 100).toInt()}%',
+                          radius: radius,
+                          titleStyle: TextStyle(
+                            fontSize: fontSize,
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: theme.textTheme.titleLarge?.color,
+                            color: Colors.white,
+                            shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
                           ),
-                        ),
-                        Text(
-                          subtext,
-                          style: TextStyle(
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                        );
+                      }),
                     ),
                   ),
-                  if (!hasBudget) // Only show amount on right if not showing budget details inline (or keep it?)
-                  Text(
-                    AppColors.formatCurrency(amount),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: theme.textTheme.titleLarge?.color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progressValue,
-                  backgroundColor: isDark ? Colors.grey[800] : Colors.grey[100],
-                  color: progressColor,
-                  minHeight: 8, // Slightly thicker for budget visibility
                 ),
               ),
-              if (extraInfo != null) extraInfo,
+              const SizedBox(width: 28),
             ],
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 24),
+
+        // List Items
+        ...sortedCategories.asMap().entries.map((mapEntry) {
+          final index = mapEntry.key;
+          final entry = mapEntry.value;
+          final categoryId = entry.key;
+          final amount = entry.value;
+          final percentage = totalExpense > 0 ? (amount / totalExpense) : 0.0;
+          final percentageInt = (percentage * 100).toInt();
+
+          final category = provider.categories.firstWhere(
+            (c) => c.id == categoryId,
+            orElse: () => Category(id: 'unknown', name: 'Desconocido', kind: CategoryKind.expense),
+          );
+
+          final budget = category.monthlyBudget;
+          final hasBudget = budget != null && budget > 0;
+
+          String subtext;
+          Color progressColor;
+          double progressValue;
+          Widget? extraInfo;
+          
+          final chartColor = palette[index % palette.length];
+
+          if (budget != null && budget > 0) {
+            final budgetPercent = amount / budget;
+            final budgetPercentInt = (budgetPercent * 100).toInt();
+
+            if (budgetPercent >= 1.0) {
+              progressColor = Colors.red;
+            } else if (budgetPercent >= 0.8) {
+              progressColor = Colors.orange;
+            } else {
+              progressColor = Colors.teal;
+            }
+
+            progressValue = budgetPercent.clamp(0.0, 1.0);
+            subtext = '${AppColors.formatCurrency(amount)} de ${AppColors.formatCurrency(budget)} ($budgetPercentInt%)';
+
+            if (budgetPercent > 1.0) {
+              extraInfo = Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Text(
+                  'Excedido por ${AppColors.formatCurrency(amount - budget)}',
+                  style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              );
+            }
+          } else {
+            subtext = '$percentageInt% del total';
+            progressColor = chartColor; // Use chart color for consistency
+            progressValue = percentage;
+          }
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.cardTheme.color,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: hasBudget ? progressColor.withOpacity(0.1) : chartColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        IconHelper.getIconByName(category.iconName ?? 'category'),
+                        color: hasBudget ? progressColor : chartColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            category.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: theme.textTheme.titleLarge?.color,
+                            ),
+                          ),
+                          Text(
+                            subtext,
+                            style: TextStyle(
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!hasBudget)
+                      Text(
+                        AppColors.formatCurrency(amount),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: theme.textTheme.titleLarge?.color,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progressValue,
+                    backgroundColor: isDark ? Colors.grey[800] : Colors.grey[100],
+                    color: progressColor,
+                    minHeight: 8,
+                  ),
+                ),
+                if (extraInfo != null) extraInfo,
+              ],
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+}
+
+class _TrendsTab extends StatelessWidget {
+  const _TrendsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final provider = Provider.of<DataProvider>(context);
+    
+    // Get last 6 months data
+    final now = DateTime.now();
+    final List<Map<String, dynamic>> monthlyData = [];
+
+    for (int i = 5; i >= 0; i--) {
+      final date = DateTime(now.year, now.month - i, 1);
+      final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+      
+      final income = provider.getIncomes(monthKey: monthKey);
+      final expense = provider.getRealExpenses(monthKey: monthKey);
+      
+      monthlyData.add({
+        'label': _getMonthAbbrev(date.month),
+        'income': income,
+        'expense': expense,
+      });
+    }
+
+    final maxY = monthlyData.fold(0.0, (max, data) {
+      final income = data['income'] as double;
+      final expense = data['expense'] as double;
+      return income > max ? (income > expense ? income : expense) : (expense > max ? expense : max);
+    }) * 1.2; // Add some headroom
+
+    if (maxY == 0) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart, size: 64, color: isDark ? Colors.grey[700] : Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              'No hay datos suficientes',
+              style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Expanded(
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxY,
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => isDark ? Colors.grey[800]! : Colors.white,
+                    tooltipPadding: const EdgeInsets.all(8),
+                    tooltipMargin: 8,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final type = rodIndex == 0 ? 'Ingresos' : 'Gastos';
+                      return BarTooltipItem(
+                        '$type\n${AppColors.formatCurrency(rod.toY)}',
+                        TextStyle(
+                          color: rodIndex == 0 ? AppColors.income : AppColors.expense,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        if (value < 0 || value >= monthlyData.length) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            monthlyData[value.toInt()]['label'],
+                            style: TextStyle(
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      },
+                      reservedSize: 30,
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: maxY / 5 > 0 ? maxY / 5 : 1,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: isDark ? Colors.white10 : Colors.black12,
+                    strokeWidth: 1,
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                barGroups: monthlyData.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final data = entry.value;
+                  return BarChartGroupData(
+                    x: index,
+                    barRods: [
+                      BarChartRodData(
+                        toY: data['income'],
+                        color: AppColors.income,
+                        width: 12,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                      ),
+                      BarChartRodData(
+                        toY: data['expense'],
+                        color: AppColors.expense,
+                        width: 12,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _LegendItem(color: AppColors.income, label: 'Ingresos'),
+              const SizedBox(width: 24),
+              _LegendItem(color: AppColors.expense, label: 'Gastos'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getMonthAbbrev(int month) {
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return months[month - 1];
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _LegendItem({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 }

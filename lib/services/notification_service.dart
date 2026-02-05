@@ -3,6 +3,7 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../models/account.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -72,6 +73,112 @@ class NotificationService {
   static const String _channelNightlyReminder = 'nightly_reminder';
   static const String _channelBudgetAlerts = 'budget_alerts';
   static const String _channelAchievements = 'achievements';
+  static const String _channelCardReminders = 'card_reminders';
+
+  Future<void> scheduleCardClosingReminder({
+    required Account account,
+  }) async {
+    if (!_isInitialized) return;
+    if (account.type != AccountType.card) return;
+    if (account.closingDay == null) return;
+
+    final int notificationId = account.id.hashCode;
+    final now = DateTime.now();
+    
+    // Calculate next closing date (approximate for monthly recurrence)
+    // We target 2 days before closing
+    final int warningDays = 2;
+    
+    // Determine the day to schedule (closingDay - 2)
+    // Handle wrap around if closing day is 1 or 2 (e.g. 1 - 2 = -1 -> end of previous month)
+    // But for recurring monthly notification, we need a fixed day.
+    // If closingDay is 1, we want notification on 29/30/31 of previous month?
+    // matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime works on specific day.
+    // If closingDay=5, notificationDay=3. It will fire on 3rd of every month.
+    // If closingDay=1, notificationDay would be effectively "Day 29/30/31".
+    // This is tricky for recurrence.
+    // Simplified approach: If closingDay <= 2, schedule for day 28.
+    // Else closingDay - 2.
+    
+    int notificationDay = account.closingDay! - warningDays;
+    if (notificationDay < 1) notificationDay = 28; // Fallback to 28th to be safe
+    
+    // Construct the next occurrence
+    DateTime scheduledDate = DateTime(now.year, now.month, notificationDay, 9, 0);
+    if (scheduledDate.isBefore(now)) {
+       scheduledDate = scheduledDate.add(const Duration(days: 1)); // Try next day? No, next month.
+       // Actually for zonedSchedule with matchDateTimeComponents, the date just needs to be in the future
+       // to start the sequence.
+       if (scheduledDate.isBefore(now)) {
+           // If today is 5th and we schedule for 3rd, we must schedule for next month's 3rd.
+           scheduledDate = DateTime(now.year, now.month + 1, notificationDay, 9, 0);
+       }
+    }
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      notificationId,
+      'Cierre de Tarjeta: ${account.name}',
+      'Tu tarjeta cierra el día ${account.closingDay}. ¡Revisa tus gastos!',
+      tz.TZDateTime.from(scheduledDate, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelCardReminders,
+          'Recordatorios de Tarjetas',
+          channelDescription: 'Avisos de cierre y vencimiento de tarjetas',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+    );
+  }
+
+  Future<void> scheduleCardDueReminder({
+    required Account account,
+  }) async {
+    if (!_isInitialized) return;
+    if (account.type != AccountType.card) return;
+    if (account.dueDay == null) return;
+
+    final int notificationId = account.id.hashCode + 1; // Different ID from closing
+    final now = DateTime.now();
+    
+    // Warn 2 days before due date
+    final int warningDays = 2;
+    
+    int notificationDay = account.dueDay! - warningDays;
+    if (notificationDay < 1) notificationDay = 28; // Fallback
+    
+    DateTime scheduledDate = DateTime(now.year, now.month, notificationDay, 9, 0);
+    if (scheduledDate.isBefore(now)) {
+       scheduledDate = DateTime(now.year, now.month + 1, notificationDay, 9, 0);
+    }
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      notificationId,
+      'Vencimiento de Tarjeta: ${account.name}',
+      'Tu tarjeta vence el día ${account.dueDay}. ¡No olvides pagar!',
+      tz.TZDateTime.from(scheduledDate, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelCardReminders,
+          'Recordatorios de Tarjetas',
+          channelDescription: 'Avisos de cierre y vencimiento de tarjetas',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+    );
+  }
 
   Future<void> schedulePaymentReminder({
     required int id,

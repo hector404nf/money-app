@@ -12,6 +12,7 @@ class TransactionTile extends StatelessWidget {
   final VoidCallback? onTap;
   final TransactionStatus status;
   final DateTime? dueDate;
+  final bool isPrivacyEnabled;
 
   const TransactionTile({
     super.key,
@@ -23,6 +24,7 @@ class TransactionTile extends StatelessWidget {
     this.onTap,
     this.status = TransactionStatus.pagado,
     this.dueDate,
+    this.isPrivacyEnabled = false,
   });
 
   @override
@@ -127,7 +129,9 @@ class TransactionTile extends StatelessWidget {
                 const SizedBox(width: 16),
                 Flexible(
                   child: Text(
-                    '₲ ${amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                    isPrivacyEnabled
+                        ? '₲ ****'
+                        : '₲ ${amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: color,

@@ -5,8 +5,8 @@ import '../models/transaction.dart';
 class PredictionService {
   /// Predicts the balance at the end of the month using Linear Regression on daily balances.
   /// Returns a map with 'predictedBalance', 'trend' (slope), and 'rSquared'.
-  Map<String, dynamic> predictEndOfMonthBalance(List<Transaction> transactions, double currentBalance) {
-    final now = DateTime.now();
+  Map<String, dynamic> predictEndOfMonthBalance(List<Transaction> transactions, double currentBalance, {DateTime? referenceDate}) {
+    final now = referenceDate ?? DateTime.now();
     final daysInMonth = DateUtils.getDaysInMonth(now.year, now.month);
     final currentDay = now.day;
 

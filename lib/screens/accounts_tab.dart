@@ -23,6 +23,7 @@ class AccountsTab extends StatelessWidget {
     final provider = Provider.of<DataProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isPrivacyEnabled = provider.isPrivacyEnabled;
     final totalBalance = provider.accounts.fold(
       0.0, 
       (sum, account) => sum + provider.getAccountBalance(account.id)
@@ -196,6 +197,84 @@ class AccountsTab extends StatelessWidget {
                                   fontSize: 13,
                                 ),
                               ),
+                              if (account.type == AccountType.card) ...[
+                                const SizedBox(height: 8),
+                                if (account.closingDay != null || account.dueDay != null)
+                                  Row(
+                                    children: [
+                                      if (account.closingDay != null)
+                                        Container(
+                                          margin: const EdgeInsets.only(right: 8),
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? Colors.grey[800] : Colors.grey[200],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'Cierre: ${account.closingDay}',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: isDark ? Colors.white70 : Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                      if (account.dueDay != null)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.expense.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'Vence: ${account.dueDay}',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: AppColors.expense,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                if (account.creditLimit != null) ...[
+                                  const SizedBox(height: 8),
+                                  LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final double limit = account.creditLimit!;
+                                      final double available = limit + balance;
+                                      final double usagePercent = (limit - available) / limit;
+                                      final double clampedUsage = usagePercent.clamp(0.0, 1.0);
+                                      
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(2),
+                                            child: LinearProgressIndicator(
+                                              value: clampedUsage,
+                                              backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                                              valueColor: AlwaysStoppedAnimation<Color>(
+                                                clampedUsage > 0.9 ? AppColors.expense : AppColors.primary,
+                                              ),
+                                              minHeight: 4,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            isPrivacyEnabled
+                                                ? 'Límite: ₲ ****'
+                                                : 'Límite: ${limit.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ],
                             ],
                           ),
                         ),
@@ -204,7 +283,9 @@ class AccountsTab extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                'Gs. ${balance.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                                isPrivacyEnabled
+                                    ? 'Gs. ****'
+                                    : 'Gs. ${balance.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: theme.textTheme.bodyLarge?.color,
@@ -212,7 +293,22 @@ class AccountsTab extends StatelessWidget {
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              if (account.initialBalance > 0)
+                              if (account.type == AccountType.card && account.creditLimit != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    isPrivacyEnabled
+                                        ? 'Disp: ****'
+                                        : 'Disp: ${(account.creditLimit! + balance).toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                                    style: TextStyle(
+                                      color: AppColors.income,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                )
+                              else if (account.initialBalance > 0)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Text(
@@ -346,7 +442,9 @@ class AccountsTab extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                '₲ ${tx.amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]}.')}',
+                                isPrivacyEnabled
+                                    ? '₲ ****'
+                                    : '₲ ${tx.amount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]}.')}',
                                 style: theme.textTheme.bodyLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.expense,
@@ -446,6 +544,7 @@ class AccountsTab extends StatelessWidget {
               deadline: goal.deadline,
               colorValue: goal.colorValue,
               iconName: goal.iconName,
+              isPrivacyEnabled: isPrivacyEnabled,
               onTap: () => _showGoalDetails(context, goal, provider),
             )),
           ] else ...[

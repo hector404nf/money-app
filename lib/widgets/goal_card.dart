@@ -10,6 +10,7 @@ class GoalCard extends StatelessWidget {
   final int colorValue;
   final String iconName;
   final VoidCallback? onTap;
+  final bool isPrivacyEnabled;
 
   const GoalCard({
     super.key,
@@ -20,6 +21,7 @@ class GoalCard extends StatelessWidget {
     required this.colorValue,
     required this.iconName,
     this.onTap,
+    this.isPrivacyEnabled = false,
   });
 
   @override
@@ -122,7 +124,9 @@ class GoalCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Gs. ${_formatCurrency(currentAmount)}',
+                        isPrivacyEnabled
+                            ? 'Gs. ****'
+                            : 'Gs. ${_formatCurrency(currentAmount)}',
                         style: TextStyle(
                           color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                           fontWeight: FontWeight.w600,
@@ -134,7 +138,9 @@ class GoalCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'de Gs. ${_formatCurrency(targetAmount)}',
+                        isPrivacyEnabled
+                            ? 'de Gs. ****'
+                            : 'de Gs. ${_formatCurrency(targetAmount)}',
                         style: TextStyle(
                           color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                           fontSize: 12,

@@ -6,6 +6,7 @@ import '../providers/ui_provider.dart';
 import '../utils/constants.dart';
 import 'home_screen.dart';
 import 'onboarding_screen.dart';
+import 'lock_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -77,11 +78,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
     final uiProvider = context.read<UiProvider>();
     
+    Widget nextScreen;
+    if (uiProvider.biometricEnabled) {
+      nextScreen = const LockScreen();
+    } else {
+      nextScreen = uiProvider.seenOnboarding ? const HomeScreen() : const OnboardingScreen();
+    }
+
     // Smooth transition
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => 
-          uiProvider.seenOnboarding ? const HomeScreen() : const OnboardingScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },

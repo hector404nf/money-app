@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/transaction.dart';
+import '../models/debt.dart';
+import '../models/category_rule.dart';
 import '../models/goal.dart';
 import '../models/event.dart';
 import '../models/email_parser_template.dart';
@@ -23,6 +25,8 @@ class DataProvider extends ChangeNotifier {
   final List<Account> _accounts = [];
   final List<Category> _categories = [];
   final List<Transaction> _transactions = [];
+  final List<CategoryRule> _categoryRules = [];
+  final List<Debt> _debts = [];
   final List<Goal> _goals = [];
   final List<Event> _events = [];
   final List<EmailParserTemplate> _emailTemplates = [];
@@ -35,6 +39,14 @@ class DataProvider extends ChangeNotifier {
   Timer? _cloudAutoUploadTimer;
   bool _cloudAutoUploadPending = false;
   bool isTestMode = false;
+  bool _isPrivacyEnabled = false;
+
+  bool get isPrivacyEnabled => _isPrivacyEnabled;
+  void togglePrivacy() {
+    _isPrivacyEnabled = !_isPrivacyEnabled;
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+  }
   
   // Stream for new unlocks to show UI notifications
   final _achievementUnlockedController = StreamController<Achievement>.broadcast();
@@ -44,6 +56,8 @@ class DataProvider extends ChangeNotifier {
   List<Account> get accounts => List.unmodifiable(_accounts);
   List<Category> get categories => List.unmodifiable(_categories);
   List<Transaction> get transactions => List.unmodifiable(_transactions);
+  List<CategoryRule> get categoryRules => List.unmodifiable(_categoryRules);
+  List<Debt> get debts => List.unmodifiable(_debts);
   List<Goal> get goals => List.unmodifiable(_goals);
   List<Event> get events => List.unmodifiable(_events);
   List<EmailParserTemplate> get emailTemplates => List.unmodifiable(_emailTemplates);
@@ -107,11 +121,18 @@ class DataProvider extends ChangeNotifier {
       final storedAccounts = _box!.get('accounts');
       final storedCategories = _box!.get('categories');
       final storedTransactions = _box!.get('transactions');
+      final storedCategoryRules = _box!.get('categoryRules');
+      final storedDebts = _box!.get('debts');
       final storedGoals = _box!.get('goals');
       final storedEmailTemplates = _box!.get('emailTemplates');
       final storedAchievements = _box!.get('achievements');
       final storedChallenges = _box!.get('challenges');
       final storedSelectedMonthKey = _box!.get('selectedMonthKey');
+      final storedPrivacy = _box!.get('isPrivacyEnabled');
+
+      if (storedPrivacy is bool) {
+        _isPrivacyEnabled = storedPrivacy;
+      }
 
       final hasData = storedAccounts is List &&
           storedCategories is List &&
@@ -144,6 +165,16 @@ class DataProvider extends ChangeNotifier {
                 .where((t) => t.id.length > 5), // Filtrar transacciones dummy ('t1', 't2')
           );
         
+        if (storedCategoryRules is List) {
+          _categoryRules
+            ..clear()
+            ..addAll(
+              storedCategoryRules
+                  .cast<Map>()
+                  .map((m) => CategoryRule.fromMap(Map<String, dynamic>.from(m))),
+            );
+        }
+
         if (storedGoals is List) {
           _goals
             ..clear()
@@ -151,6 +182,16 @@ class DataProvider extends ChangeNotifier {
               storedGoals
                   .cast<Map>()
                   .map((m) => Goal.fromMap(Map<String, dynamic>.from(m))),
+            );
+        }
+
+        if (storedDebts is List) {
+          _debts
+            ..clear()
+            ..addAll(
+              storedDebts
+                  .cast<Map>()
+                  .map((m) => Debt.fromMap(Map<String, dynamic>.from(m))),
             );
         }
 
@@ -286,12 +327,15 @@ class DataProvider extends ChangeNotifier {
     await _box!.put('accounts', _accounts.map((a) => a.toMap()).toList());
     await _box!.put('categories', _categories.map((c) => c.toMap()).toList());
     await _box!.put('transactions', _transactions.map((t) => t.toMap()).toList());
+    await _box!.put('categoryRules', _categoryRules.map((r) => r.toMap()).toList());
+    await _box!.put('debts', _debts.map((d) => d.toMap()).toList());
     await _box!.put('goals', _goals.map((g) => g.toMap()).toList());
     await _box!.put('events', _events.map((e) => e.toMap()).toList());
     await _box!.put('emailTemplates', _emailTemplates.map((t) => t.toMap()).toList());
     await _box!.put('achievements', _achievements.map((a) => a.toMap()).toList());
     await _box!.put('challenges', _challenges.map((c) => c.toMap()).toList());
     await _box!.put('selectedMonthKey', _selectedMonthKey);
+    await _box!.put('isPrivacyEnabled', _isPrivacyEnabled);
   }
 
   void unlockAchievement(String id) {
@@ -450,6 +494,8 @@ class DataProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+
 
   // --- Lógica de Negocio / Cálculos ---
 
@@ -688,6 +734,28 @@ class DataProvider extends ChangeNotifier {
     }).toList();
   }
 
+  // --- Category Rules ---
+  void addCategoryRule(CategoryRule rule) {
+    _categoryRules.add(rule);
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+  }
+
+  void updateCategoryRule(CategoryRule rule) {
+    final index = _categoryRules.indexWhere((r) => r.id == rule.id);
+    if (index != -1) {
+      _categoryRules[index] = rule;
+      notifyListeners();
+      unawaited(_saveToStorage().catchError((_) {}));
+    }
+  }
+
+  void deleteCategoryRule(String id) {
+    _categoryRules.removeWhere((r) => r.id == id);
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+  }
+
   // --- Mutaciones ---
 
   void addTransactionObject(Transaction transaction) {
@@ -730,6 +798,7 @@ class DataProvider extends ChangeNotifier {
     double? originalAmount,
     String? originalCurrency,
     double? exchangeRate,
+    String? debtId,
   }) {
     final newTx = Transaction(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // ID simple temporal
@@ -752,12 +821,16 @@ class DataProvider extends ChangeNotifier {
       originalAmount: originalAmount,
       originalCurrency: originalCurrency,
       exchangeRate: exchangeRate,
+      debtId: debtId,
     );
 
     _transactions.add(newTx);
     
     // Schedule Notification
     _scheduleNotificationForTransaction(newTx);
+    
+    // Check Budget Alert
+    _checkBudgetAlert(newTx);
     
     // Update goal if applicable (Legacy logic)
     if (goalId != null && status == TransactionStatus.pagado) {
@@ -768,6 +841,11 @@ class DataProvider extends ChangeNotifier {
     // Note: We avoid double counting if goalId passed IS the accountId (unlikely but possible)
     if (accountId != goalId && _goals.any((g) => g.id == accountId) && status == TransactionStatus.pagado) {
        updateGoalContribution(accountId, amount);
+    }
+
+    // Update debt if applicable
+    if (debtId != null && status == TransactionStatus.pagado) {
+      _recalculateDebtBalance(debtId);
     }
     
     ensureRecurringTransactionsGenerated(date);
@@ -943,6 +1021,9 @@ class DataProvider extends ChangeNotifier {
     required String name,
     required double initialBalance,
     required AccountType type,
+    double? creditLimit,
+    int? closingDay,
+    int? dueDay,
   }) {
     final id = DateTime.now().millisecondsSinceEpoch.toString();
     final newAccount = Account(
@@ -950,8 +1031,20 @@ class DataProvider extends ChangeNotifier {
       name: name,
       initialBalance: initialBalance,
       type: type,
+      creditLimit: creditLimit,
+      closingDay: closingDay,
+      dueDay: dueDay,
     );
     _accounts.add(newAccount);
+    
+    if (newAccount.type == AccountType.card) {
+      if (newAccount.closingDay != null) {
+        NotificationService().scheduleCardClosingReminder(account: newAccount);
+      }
+      if (newAccount.dueDay != null) {
+        NotificationService().scheduleCardDueReminder(account: newAccount);
+      }
+    }
     notifyListeners();
     unawaited(_saveToStorage().catchError((_) {}));
     return id;
@@ -968,17 +1061,34 @@ class DataProvider extends ChangeNotifier {
     String? name,
     double? initialBalance,
     AccountType? type,
+    double? creditLimit,
+    int? closingDay,
+    int? dueDay,
   }) {
     final index = _accounts.indexWhere((a) => a.id == id);
     if (index != -1) {
       final old = _accounts[index];
-      _accounts[index] = Account(
+      final updatedAccount = Account(
         id: old.id,
         name: name ?? old.name,
         initialBalance: initialBalance ?? old.initialBalance,
         type: type ?? old.type,
         isActive: old.isActive,
+        creditLimit: creditLimit ?? old.creditLimit,
+        closingDay: closingDay ?? old.closingDay,
+        dueDay: dueDay ?? old.dueDay,
       );
+      _accounts[index] = updatedAccount;
+
+      if (updatedAccount.type == AccountType.card) {
+        if (updatedAccount.closingDay != null) {
+          NotificationService().scheduleCardClosingReminder(account: updatedAccount);
+        }
+        if (updatedAccount.dueDay != null) {
+          NotificationService().scheduleCardDueReminder(account: updatedAccount);
+        }
+      }
+
       notifyListeners();
       unawaited(_saveToStorage().catchError((_) {}));
     }
@@ -1010,6 +1120,15 @@ class DataProvider extends ChangeNotifier {
         }
       }
 
+      // Handle debt update
+      if (old.debtId != null) {
+        if (wasPaid != isPaid) {
+           // We can just recalculate the debt balance completely, it's safer.
+           // But we need to do it AFTER updating the transaction in the list.
+           // So we'll schedule it after the update.
+        }
+      }
+
       _transactions[index] = Transaction(
         id: old.id,
         date: old.date,
@@ -1032,7 +1151,12 @@ class DataProvider extends ChangeNotifier {
         originalAmount: old.originalAmount,
         originalCurrency: old.originalCurrency,
         exchangeRate: old.exchangeRate,
+        debtId: old.debtId,
       );
+      
+      if (old.debtId != null && wasPaid != isPaid) {
+        _recalculateDebtBalance(old.debtId!);
+      }
       
       // Update Notification
       if (status == TransactionStatus.pagado) {
@@ -1085,6 +1209,45 @@ class DataProvider extends ChangeNotifier {
     _updateHomeWidget();
   }
 
+  void updateTransaction(Transaction updatedTx) {
+    final index = _transactions.indexWhere((t) => t.id == updatedTx.id);
+    if (index != -1) {
+      final oldTx = _transactions[index];
+      
+      // Revert old goal/debt impact
+      if (oldTx.status == TransactionStatus.pagado) {
+        if (oldTx.goalId != null) updateGoalContribution(oldTx.goalId!, -oldTx.amount.abs());
+        if (oldTx.accountId != oldTx.goalId && _goals.any((g) => g.id == oldTx.accountId)) {
+           updateGoalContribution(oldTx.accountId, -oldTx.amount);
+        }
+        if (oldTx.debtId != null) _recalculateDebtBalance(oldTx.debtId!);
+      }
+
+      // Apply new goal/debt impact
+      if (updatedTx.status == TransactionStatus.pagado) {
+        if (updatedTx.goalId != null) updateGoalContribution(updatedTx.goalId!, updatedTx.amount.abs());
+        if (updatedTx.accountId != updatedTx.goalId && _goals.any((g) => g.id == updatedTx.accountId)) {
+           updateGoalContribution(updatedTx.accountId, updatedTx.amount);
+        }
+      }
+
+      _cancelNotificationForTransaction(oldTx);
+      _scheduleNotificationForTransaction(updatedTx);
+
+      _transactions[index] = updatedTx;
+      
+      if (updatedTx.debtId != null && updatedTx.status == TransactionStatus.pagado) {
+         _recalculateDebtBalance(updatedTx.debtId!);
+      }
+
+      _transactions.sort((a, b) => b.date.compareTo(a.date));
+      notifyListeners();
+      unawaited(_saveToStorage().catchError((_) {}));
+      _scheduleCloudAutoUpload();
+      _updateHomeWidget();
+    }
+  }
+
   void deleteTransaction(String id) {
     final index = _transactions.indexWhere((t) => t.id == id);
     if (index != -1) {
@@ -1103,6 +1266,10 @@ class DataProvider extends ChangeNotifier {
       _cancelNotificationForTransaction(tx);
       _transactions.removeAt(index);
       
+      if (tx.debtId != null) {
+        _recalculateDebtBalance(tx.debtId!);
+      }
+
       notifyListeners();
       unawaited(_saveToStorage().catchError((_) {}));
       _scheduleCloudAutoUpload();
@@ -1201,6 +1368,87 @@ class DataProvider extends ChangeNotifier {
     unawaited(_saveToStorage().catchError((_) {}));
   }
 
+  // --- Debt Management ---
+
+  void addDebt(Debt debt) {
+    _debts.add(debt);
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+    _scheduleCloudAutoUpload();
+  }
+
+  void updateDebt(Debt debt) {
+    final index = _debts.indexWhere((d) => d.id == debt.id);
+    if (index != -1) {
+      _debts[index] = debt;
+      notifyListeners();
+      unawaited(_saveToStorage().catchError((_) {}));
+      _scheduleCloudAutoUpload();
+    }
+  }
+
+  void deleteDebt(String id) {
+    _debts.removeWhere((d) => d.id == id);
+    // Optional: Remove debtId from linked transactions?
+    // For now, we keep the history but maybe set debtId to null?
+    // Or just keep it as is, but getTransactionsForDebt will return them still.
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+    _scheduleCloudAutoUpload();
+  }
+
+  List<Transaction> getTransactionsForDebt(String debtId) {
+    return _transactions.where((t) => t.debtId == debtId).toList();
+  }
+
+  void _recalculateDebtBalance(String debtId) {
+    final debtIndex = _debts.indexWhere((d) => d.id == debtId);
+    if (debtIndex == -1) return;
+
+    final debt = _debts[debtIndex];
+    final linkedTransactions = getTransactionsForDebt(debtId);
+
+    // Calculate paid amount
+    double paidAmount = 0;
+    int paidInstallments = 0;
+
+    for (var tx in linkedTransactions) {
+      // Logic: 
+      // If Debt is Borrowing (I owe money): Expense reduces debt.
+      // If Debt is Lending (They owe me): Income reduces debt.
+      
+      bool isPayment = false;
+      if (debt.type == DebtType.borrowing && tx.mainType == MainType.expenses) {
+        isPayment = true;
+      } else if (debt.type == DebtType.lending && tx.mainType == MainType.incomes) {
+        isPayment = true;
+      }
+
+      if (isPayment) {
+        paidAmount += tx.amount.abs();
+        paidInstallments++;
+      }
+    }
+
+    // Update debt
+    // Note: If interest is added, totalAmount might need adjustment, but for MVP we assume totalAmount is fixed
+    // or interest is handled separately. 
+    // If interestRate is simple, maybe we assume totalAmount includes it? 
+    // For now, simple logic: remaining = total - paid.
+
+    double remaining = debt.totalAmount - paidAmount;
+    if (remaining < 0) remaining = 0; // Overpaid?
+
+    final updatedDebt = debt.copyWith(
+      remainingAmount: remaining,
+      paidInstallments: paidInstallments,
+    );
+
+    _debts[debtIndex] = updatedDebt;
+    notifyListeners();
+    unawaited(_saveToStorage().catchError((_) {}));
+  }
+
   // --- Helpers Notificaciones ---
 
   void _scheduleNotificationForTransaction(Transaction tx) {
@@ -1223,6 +1471,29 @@ class DataProvider extends ChangeNotifier {
         title: 'Recordatorio de Pago',
         body: 'Vence el ${DateFormat('dd/MM').format(tx.dueDate!)}: ${AppColors.formatCurrency(tx.amount.abs())}',
         scheduledDate: scheduledDate,
+      );
+    }
+  }
+
+  void _checkBudgetAlert(Transaction newTx) {
+    if (newTx.amount >= 0) return; // Only expenses
+    
+    final category = _categories.firstWhere(
+      (c) => c.id == newTx.categoryId, 
+      orElse: () => Category(id: '', name: '', kind: CategoryKind.expense)
+    );
+    if (category.id.isEmpty || category.monthlyBudget == null || category.monthlyBudget! <= 0) return;
+
+    final spent = getCategorySpending(category.id, newTx.monthKey);
+    final limit = category.monthlyBudget!;
+    final percentage = (spent / limit) * 100;
+
+    if (percentage >= 80) {
+      NotificationService().sendBudgetAlert(
+        categoryName: category.name,
+        percentage: percentage,
+        spent: spent,
+        limit: limit,
       );
     }
   }

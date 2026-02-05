@@ -27,11 +27,12 @@ void main() {
 
     test('predicts stable balance correctly', () {
       final currentBalance = 1000.0;
+      final refDate = DateTime(2026, 1, 15);
       // Create transactions for previous days that show stability.
-      // If balance is 1000 now (day 21), and we had no transactions, it was 1000 all along.
+      // If balance is 1000 now (day 15), and we had no transactions, it was 1000 all along.
       // Linear regression on y=1000 should yield m=0, b=1000.
       
-      final result = predictionService.predictEndOfMonthBalance([], currentBalance);
+      final result = predictionService.predictEndOfMonthBalance([], currentBalance, referenceDate: refDate);
       
       expect(result['slope'], closeTo(0, 0.001));
       expect(result['predictedBalance'], closeTo(1000, 0.001));
@@ -39,7 +40,7 @@ void main() {
 
     test('predicts declining balance', () {
       final currentBalance = 1000.0;
-      final now = DateTime.now();
+      final now = DateTime(2026, 1, 21);
       // Suppose we spent 100 every day from day 1 to day 21.
       // Current balance is 1000.
       // So on day 1 it was higher.
@@ -62,7 +63,7 @@ void main() {
         ));
       }
 
-      final result = predictionService.predictEndOfMonthBalance(txs, currentBalance);
+      final result = predictionService.predictEndOfMonthBalance(txs, currentBalance, referenceDate: now);
       
       // Slope should be around -100
       expect(result['slope'], closeTo(-100, 1.0));

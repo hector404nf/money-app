@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
 import '../providers/ui_provider.dart';
 import '../models/category.dart';
+import '../models/account.dart';
 import '../widgets/hero_card.dart';
 import '../widgets/summary_card.dart';
 import '../widgets/quick_action_button.dart';
@@ -15,7 +16,12 @@ import 'transaction_details_screen.dart';
 import 'sync_screen.dart';
 import 'reports_screen.dart';
 import 'achievements_screen.dart';
-import '../services/update_service.dart';
+import 'ai_input_screen.dart';
+import 'budgets_screen.dart';
+import 'debts_screen.dart';
+import 'subscriptions_screen.dart';
+import 'account_detail_screen.dart';
+import 'settings_tab.dart';
 
 class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key});
@@ -28,10 +34,6 @@ class _DashboardTabState extends State<DashboardTab> {
   @override
   void initState() {
     super.initState();
-    // Verificar actualizaciones al iniciar el dashboard
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      UpdateService().checkForUpdates(context);
-    });
   }
 
   @override
@@ -39,6 +41,9 @@ class _DashboardTabState extends State<DashboardTab> {
     final provider = Provider.of<DataProvider>(context);
     final ui = Provider.of<UiProvider>(context);
     final theme = Theme.of(context);
+    
+    // ... existing code ...
+
     final isDark = theme.brightness == Brightness.dark;
 
     final selectedMonthKey = provider.selectedMonthKey;
@@ -97,7 +102,14 @@ class _DashboardTabState extends State<DashboardTab> {
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              IconButton(
+                icon: Icon(
+                  provider.isPrivacyEnabled ? Icons.visibility_off : Icons.visibility,
+                  color: theme.iconTheme.color,
+                ),
+                onPressed: () => provider.togglePrivacy(),
+              ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
@@ -128,7 +140,7 @@ class _DashboardTabState extends State<DashboardTab> {
                       DropdownMenuItem<String?>(
                         value: null,
                         child: Text(
-                          'Todo el historial',
+                          'Todos',
                           style: TextStyle(
                             color: theme.textTheme.bodyLarge?.color,
                           ),
@@ -158,6 +170,117 @@ class _DashboardTabState extends State<DashboardTab> {
             
             HeroCard(amount: projectedBalance),
             
+            const SizedBox(height: 24),
+
+            // Accounts List
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Mis Cuentas',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      // Optional: Add 'See all' button if needed
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 140,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: provider.accounts.length + 1, // +1 for "Add Account" or just show all
+                    separatorBuilder: (context, index) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      if (index == provider.accounts.length) {
+                         // Add Account Button (Optional, or just show summary)
+                         return Container(); 
+                         // For now, let's just show accounts. 
+                         // Actually, let's keep it simple and just show accounts.
+                      }
+                      final account = provider.accounts[index];
+                      final balance = provider.getAccountBalance(account.id);
+                      
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AccountDetailScreen(accountId: account.id),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: 140,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: theme.cardTheme.color,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: account.type.color.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  account.type.icon,
+                                  color: account.type.color,
+                                  size: 20,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                account.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: isDark ? Colors.white70 : AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                provider.isPrivacyEnabled
+                                  ? '****'
+                                  : '₲ ${balance.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]}.')}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: balance < 0 ? AppColors.expense : (isDark ? Colors.white : AppColors.textPrimary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+
             const SizedBox(height: 24),
 
             Builder(
@@ -342,7 +465,9 @@ class _DashboardTabState extends State<DashboardTab> {
                             ),
                           ),
                           Text(
-                            '₲ ${dailyAmount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]}.')}',
+                            provider.isPrivacyEnabled
+                                ? '₲ ****'
+                                : '₲ ${dailyAmount.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]}.')}',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
@@ -465,39 +590,81 @@ class _DashboardTabState extends State<DashboardTab> {
               },
             ),
 
-            Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              QuickActionButton(
-                icon: Icons.add,
-                label: 'Nuevo',
-                color: AppColors.primary,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddTransactionScreen()),
-                ),
-              ),
-              QuickActionButton(
-                icon: Icons.sync,
-                label: 'Sincronizar',
-                color: AppColors.secondary,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SyncScreen()),
-                ),
-              ),
-              QuickActionButton(
-                icon: Icons.analytics_outlined,
-                label: 'Reportes',
-                color: const Color(0xFF1976D2), // Azul Transferencia
-                onTap: () {
-                  Navigator.push(
+            Wrap(
+              alignment: WrapAlignment.spaceEvenly,
+              runSpacing: 16,
+              spacing: 12,
+              children: [
+                QuickActionButton(
+                  icon: Icons.add,
+                  label: 'Nuevo',
+                  color: AppColors.primary,
+                  onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ReportsScreen()),
-                  );
-                },
-              ),
-            ],
+                    MaterialPageRoute(builder: (_) => const AddTransactionScreen()),
+                  ),
+                ),
+                QuickActionButton(
+                  icon: Icons.mic_none_outlined,
+                  label: 'IA Voz',
+                  color: Colors.purple,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AiInputScreen()),
+                  ),
+                ),
+                QuickActionButton(
+                  icon: Icons.sync,
+                  label: 'Sync',
+                  color: AppColors.secondary,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SyncScreen()),
+                  ),
+                ),
+                QuickActionButton(
+                  icon: Icons.pie_chart_outline,
+                  label: 'Presupuestos',
+                  color: Colors.orange,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BudgetsScreen()),
+                  ),
+                ),
+                QuickActionButton(
+                  icon: Icons.analytics_outlined,
+                  label: 'Reportes',
+                  color: const Color(0xFF1976D2), // Azul Transferencia
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ReportsScreen()),
+                    );
+                  },
+                ),
+                QuickActionButton(
+                  icon: Icons.handshake_outlined,
+                  label: 'Deudas',
+                  color: Colors.teal,
+                  onTap: () {
+                    Navigator.push(
+                       context,
+                       MaterialPageRoute(builder: (_) => DebtsScreen()),
+                     );
+                  },
+                ),
+                QuickActionButton(
+                  icon: Icons.repeat,
+                  label: 'Suscrip.',
+                  color: Colors.purple,
+                  onTap: () {
+                    Navigator.push(
+                       context,
+                       MaterialPageRoute(builder: (_) => const SubscriptionsScreen()),
+                     );
+                  },
+                ),
+              ],
             ),
             
             const SizedBox(height: 32),
@@ -511,6 +678,7 @@ class _DashboardTabState extends State<DashboardTab> {
                   pendingAmount: pendingIncomes,
                   icon: Icons.trending_up,
                   color: AppColors.income,
+                  isPrivacyEnabled: provider.isPrivacyEnabled,
                 ),
               ),
               const SizedBox(width: 16),
@@ -521,6 +689,7 @@ class _DashboardTabState extends State<DashboardTab> {
                   pendingAmount: pendingExpenses,
                   icon: Icons.trending_down,
                   color: AppColors.expense,
+                  isPrivacyEnabled: provider.isPrivacyEnabled,
                 ),
               ),
             ],

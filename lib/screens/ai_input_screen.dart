@@ -126,7 +126,9 @@ class _AiInputScreenState extends State<AiInputScreen> {
         final result = await _nlpService.processText(
             _textController.text, 
             provider.categories,
-            provider.accounts
+            provider.accounts,
+            context: context,
+            rules: provider.categoryRules,
         );
 
         if (!mounted) return;
